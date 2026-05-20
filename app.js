@@ -1,5 +1,7 @@
 let appData = {
     decks: [],
+    folders: [],
+    studyLogs: [],
     settings: {
         theme: 'light'
     },
@@ -10,6 +12,9 @@ let appData = {
         totalAttempts: 0
     }
 };
+
+let currentStudySession = null;
+let currentFolderId = 'root';
 
 let currentDeckId = null;
 let currentStudyCards = [];
@@ -22,7 +27,8 @@ let autoPlayTimer = null;
 const views = {
     decks: document.getElementById('view-decks'),
     deckDetails: document.getElementById('view-deck-details'),
-    study: document.getElementById('view-study')
+    study: document.getElementById('view-study'),
+    logs: document.getElementById('view-logs')
 };
 
 // Initialization
@@ -33,6 +39,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!appData.statistics) {
         appData.statistics = { daily: {}, totalCardsStudied: 0, totalCorrect: 0, totalAttempts: 0 };
     }
+    if (!appData.folders) appData.folders = [];
+    if (!appData.studyLogs) appData.studyLogs = [];
+    appData.decks.forEach((d, i) => {
+        if (d.parentId === undefined) {
+            d.parentId = 'root';
+            d.sortIndex = i;
+        }
+    });
+    
     setupEventListeners();
     renderDeckList();
     renderGlobalStats();
@@ -65,6 +80,12 @@ function generateId() {
 // 2. Event Listeners
 // ==========================================
 function setupEventListeners() {
+    // Folders and Logs
+    document.getElementById('btnCreateFolder').addEventListener('click', () => openModal('modalCreateFolder'));
+    document.getElementById('btnConfirmCreateFolder').addEventListener('click', handleCreateFolder);
+    document.getElementById('btnViewLogs').addEventListener('click', () => switchView('logs'));
+    document.getElementById('btnConfirmMove').addEventListener('click', handleMoveItem);
+    
     // Theme Toggle
     document.getElementById('themeToggle').addEventListener('click', toggleTheme);
     
@@ -84,11 +105,9 @@ function setupEventListeners() {
     });
     
     document.querySelectorAll('.btn-close-modal').forEach(btn => {
-        btn.addEventListener('click', () => {
-            closeModal('modalCreateDeck');
-            closeModal('modalAddCard');
-            closeModal('modalExportPdf');
-            closeModal('modalExportCsv');
+        btn.addEventListener('click', (e) => {
+            const modal = e.target.closest('.modal');
+            if (modal) modal.classList.add('hidden');
         });
     });
 
@@ -154,6 +173,7 @@ function setupEventListeners() {
         openModal('modalExportPdf');
     });
     document.getElementById('btnConfirmExportPdf').addEventListener('click', handleExportPdf);
+    document.getElementById('btnEditDeckName').addEventListener('click', handleEditDeckName);
 }
 
 // ==========================================
@@ -165,6 +185,7 @@ function switchView(viewId) {
     // Stop autoplay when leaving study view
     if (viewId !== 'study') {
         stopAutoPlay();
+        endStudySession();
     }
     
     if (viewId === 'decks') {
@@ -177,6 +198,9 @@ function switchView(viewId) {
         views.deckDetails.classList.remove('hidden');
     } else if (viewId === 'study') {
         views.study.classList.remove('hidden');
+    } else if (viewId === 'logs') {
+        renderLogs();
+        views.logs.classList.remove('hidden');
     }
 }
 
@@ -192,44 +216,152 @@ function renderDeckList() {
     const container = document.getElementById('deckListContainer');
     container.innerHTML = '';
     
-    if (appData.decks.length === 0) {
-        container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 2rem;">아직 생성된 덱이 없습니다. 새 덱을 만들어보세요!</p>';
-        return;
-    }
-    
-    appData.decks.forEach(deck => {
-        const dueCardsCount = deck.cards.filter(isCardDue).length;
-        const totalCards = deck.cards.length;
+    appData.folders.sort((a,b) => (a.sortIndex || 0) - (b.sortIndex || 0));
+    appData.decks.sort((a,b) => (a.sortIndex || 0) - (b.sortIndex || 0));
+
+    function renderNode(parentId, depth) {
+        let html = '';
+        const folders = appData.folders.filter(f => f.parentId === parentId);
+        const decks = appData.decks.filter(d => d.parentId === parentId);
         
-        const el = document.createElement('div');
-        el.className = 'deck-card';
-        el.innerHTML = `
-            <div class="deck-title">${deck.name}</div>
-            <div class="deck-info">카드 ${totalCards}장 | <strong>${dueCardsCount}장 학습 필요</strong></div>
-            <div class="deck-actions">
-                <button class="icon-btn btn-delete-deck" data-id="${deck.id}" aria-label="삭제">
-                    <i data-lucide="trash-2"></i>
-                </button>
-            </div>
-        `;
-        
-        // click to open details
-        el.addEventListener('click', (e) => {
-            if (e.target.closest('.btn-delete-deck')) {
-                if(confirm('이 덱을 삭제하시겠습니까?')) {
-                    appData.decks = appData.decks.filter(d => d.id !== deck.id);
-                    saveData();
-                    renderDeckList();
-                }
-                return;
-            }
-            currentDeckId = deck.id;
-            switchView('deckDetails');
+        folders.forEach(f => {
+            html += `
+            <div class="tree-item" >
+                <div class="folder-header" onclick="toggleFolder('${f.id}')" draggable="true" ondragstart="handleDragStart(event, '${f.id}', 'folder')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${f.id}')">
+                    <div class="folder-title">
+                        <i data-lucide="folder"></i> ${f.name}
+                    </div>
+                    <div class="folder-actions">
+                        <button class="icon-btn" onclick="moveOrder('${f.id}', 'folder', 'up'); event.stopPropagation();" title="위로"><i data-lucide="chevron-up"></i></button>
+                        <button class="icon-btn" onclick="moveOrder('${f.id}', 'folder', 'down'); event.stopPropagation();" title="아래로"><i data-lucide="chevron-down"></i></button>
+                        <button class="icon-btn" onclick="openMoveModal('${f.id}', 'folder'); event.stopPropagation();" title="이동"><i data-lucide="move"></i></button>
+                        <button class="icon-btn" onclick="deleteFolder('${f.id}'); event.stopPropagation();" title="삭제"><i data-lucide="trash-2"></i></button>
+                    </div>
+                </div>
+                <div class="folder-content" id="folder-content-${f.id}">
+                    ${renderNode(f.id, depth + 1)}
+                </div>
+            </div>`;
         });
         
-        container.appendChild(el);
-    });
+        decks.forEach(deck => {
+            const dueCardsCount = deck.cards.filter(isCardDue).length;
+            const totalCards = deck.cards.length;
+            html += `
+            <div class="tree-deck-card"  onclick="openDeck('${deck.id}')" draggable="true" ondragstart="handleDragStart(event, '${deck.id}', 'deck')" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDropOnDeck(event, '${deck.id}')">
+                <div class="deck-info-tree">
+                    <div class="deck-title-tree"><i data-lucide="layers"></i> ${deck.name}</div>
+                    <div class="deck-stats-tree">카드 ${totalCards}장 | ${dueCardsCount}장 대기</div>
+                </div>
+                <div class="deck-actions-tree">
+                    <button class="icon-btn" onclick="moveOrder('${deck.id}', 'deck', 'up'); event.stopPropagation();" title="위로"><i data-lucide="chevron-up"></i></button>
+                    <button class="icon-btn" onclick="moveOrder('${deck.id}', 'deck', 'down'); event.stopPropagation();" title="아래로"><i data-lucide="chevron-down"></i></button>
+                    <button class="icon-btn" onclick="openMoveModal('${deck.id}', 'deck'); event.stopPropagation();" title="이동"><i data-lucide="move"></i></button>
+                    <button class="icon-btn" onclick="deleteDeck('${deck.id}'); event.stopPropagation();" title="삭제"><i data-lucide="trash-2"></i></button>
+                </div>
+            </div>`;
+        });
+        return html;
+    }
+
+    let treeHtml = renderNode('root', 0);
+    treeHtml += `<div style="padding: 1rem; border: 2px dashed var(--border-color); border-radius: var(--radius-sm); text-align: center; margin-top: 1rem; color: var(--text-muted);" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, 'root')">최상위 위치로 이동 (여기로 드래그)</div>`;
+    if (!treeHtml) {
+        container.innerHTML = '<p style="text-align: center; padding: 2rem;">아직 생성된 폴더나 덱이 없습니다. 새 덱을 만들어보세요!</p>';
+    } else {
+        container.innerHTML = treeHtml;
+    }
     lucide.createIcons();
+}
+
+function openDeck(id) {
+    currentDeckId = id;
+    switchView('deckDetails');
+}
+
+function deleteDeck(id) {
+    if(confirm('이 덱을 삭제하시겠습니까?')) {
+        appData.decks = appData.decks.filter(d => d.id !== id);
+        saveData();
+        renderDeckList();
+    }
+}
+
+function toggleFolder(id) {
+    const content = document.getElementById(`folder-content-${id}`);
+    if (content) content.classList.toggle('collapsed');
+}
+
+function deleteFolder(id) {
+    if(confirm('폴더를 삭제하면 내부에 있는 모든 덱과 하위 폴더가 삭제됩니다. 정말 삭제하시겠습니까?')) {
+        const idsToDelete = [id];
+        let changed = true;
+        while(changed) {
+            changed = false;
+            appData.folders.forEach(f => {
+                if (idsToDelete.includes(f.parentId) && !idsToDelete.includes(f.id)) {
+                    idsToDelete.push(f.id);
+                    changed = true;
+                }
+            });
+        }
+        appData.folders = appData.folders.filter(f => !idsToDelete.includes(f.id));
+        appData.decks = appData.decks.filter(d => !idsToDelete.includes(d.parentId));
+        saveData();
+        renderDeckList();
+    }
+}
+
+function handleCreateFolder() {
+    const nameInput = document.getElementById('folderNameInput');
+    const name = nameInput.value.trim();
+    if (!name) return alert('폴더 이름을 입력하세요.');
+    
+    appData.folders.push({
+        id: generateId(),
+        parentId: 'root',
+        name: name,
+        sortIndex: appData.folders.length,
+        createdAt: Date.now()
+    });
+    
+    saveData();
+    nameInput.value = '';
+    closeModal('modalCreateFolder');
+    renderDeckList();
+}
+
+function openMoveModal(id, type) {
+    document.getElementById('moveItemId').value = id;
+    document.getElementById('moveItemType').value = type;
+    
+    const select = document.getElementById('moveTargetSelect');
+    select.innerHTML = '<option value="root">최상위 위치 (기본)</option>';
+    
+    appData.folders.forEach(f => {
+        // Prevent moving folder into itself
+        if (type === 'folder' && f.id === id) return;
+        select.innerHTML += `<option value="${f.id}">📁 ${f.name}</option>`;
+    });
+    
+    openModal('modalMoveItem');
+}
+
+function handleMoveItem() {
+    const id = document.getElementById('moveItemId').value;
+    const type = document.getElementById('moveItemType').value;
+    const targetId = document.getElementById('moveTargetSelect').value;
+    
+    if (type === 'folder') {
+        const f = appData.folders.find(x => x.id === id);
+        if (f) f.parentId = targetId;
+    } else {
+        const d = appData.decks.find(x => x.id === id);
+        if (d) d.parentId = targetId;
+    }
+    saveData();
+    closeModal('modalMoveItem');
+    renderDeckList();
 }
 
 function renderDeckDetails() {
@@ -309,6 +441,8 @@ function handleCreateDeck() {
     
     appData.decks.push({
         id: generateId(),
+        parentId: 'root',
+        sortIndex: appData.decks.length,
         name: name,
         createdAt: Date.now(),
         cards: []
@@ -396,6 +530,17 @@ function startStudySession() {
     isReversed = false;
     document.getElementById('btnToggleReverse').style.color = 'inherit';
     
+    currentStudySession = {
+        id: generateId(),
+        deckId: currentDeckId,
+        deckName: deck.name,
+        mode: '대기 학습',
+        startTime: Date.now(),
+        totalCards: currentStudyCards.length,
+        correct: 0,
+        incorrect: 0
+    };
+    
     switchView('study');
     renderCurrentCard();
 }
@@ -417,20 +562,52 @@ function startStudyAllSession(isRandom) {
     isReversed = false;
     document.getElementById('btnToggleReverse').style.color = 'inherit';
     
+    currentStudySession = {
+        id: generateId(),
+        deckId: currentDeckId,
+        deckName: deck.name,
+        mode: isRandom ? '랜덤 복습' : '순차 복습',
+        startTime: Date.now(),
+        totalCards: currentStudyCards.length,
+        correct: 0,
+        incorrect: 0
+    };
+    
     switchView('study');
     renderCurrentCard();
+}
+
+function endStudySession() {
+    if (currentStudySession) {
+        currentStudySession.endTime = Date.now();
+        const duration = Math.round((currentStudySession.endTime - currentStudySession.startTime) / 1000);
+        currentStudySession.durationSeconds = duration;
+        appData.studyLogs.unshift(currentStudySession); // prepend
+        saveData();
+        currentStudySession = null;
+    }
 }
 
 function renderCurrentCard() {
     if (currentStudyIndex >= currentStudyCards.length) {
         alert('학습을 완료했습니다!');
+        endStudySession();
         switchView('deckDetails');
         return;
     }
     
     const card = currentStudyCards[currentStudyIndex];
     const flashcard = document.getElementById('activeFlashcard');
+    const inner = flashcard.querySelector('.flashcard-inner');
+    
+    // Temporarily remove transition to prevent text flash
+    if (inner) inner.style.transition = 'none';
     flashcard.classList.remove('is-flipped');
+    
+    // Force reflow
+    void flashcard.offsetWidth;
+    
+    if (inner) inner.style.transition = ''; // restore
     
     // Reset controls
     document.getElementById('btnShowAnswer').classList.remove('hidden');
@@ -506,8 +683,10 @@ function handleSrsAnswer(score) {
     if (score >= 2) {
         stats.correct++;
         appData.statistics.totalCorrect++;
+        if(currentStudySession) currentStudySession.correct++;
     } else {
         stats.incorrect++;
+        if(currentStudySession) currentStudySession.incorrect++;
         // If "Again" or "Hard", push the card to the end of the session to review it again later today
         currentStudyCards.push(card);
     }
@@ -557,6 +736,7 @@ function toggleAutoPlay() {
         renderCurrentCard(); // trigger autoplay loop
     } else {
         stopAutoPlay();
+        endStudySession();
     }
 }
 
@@ -902,4 +1082,179 @@ function applyTheme(theme) {
         document.getElementById('themeIcon').setAttribute('data-lucide', 'moon');
     }
     lucide.createIcons();
+}
+
+function renderLogs() {
+    const container = document.getElementById('logsListContainer');
+    container.innerHTML = '';
+    
+    if (appData.studyLogs.length === 0) {
+        container.innerHTML = '<p style="text-align:center; padding: 2rem;">아직 기록된 학습 로그가 없습니다.</p>';
+        return;
+    }
+    
+    let currentDate = '';
+    let bgColorToggle = false;
+    
+    appData.studyLogs.forEach(log => {
+        const d = new Date(log.startTime);
+        const dateOnly = d.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        const timeOnly = d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        
+        if (dateOnly !== currentDate) {
+            currentDate = dateOnly;
+            bgColorToggle = !bgColorToggle;
+            container.innerHTML += `<div style="font-weight:bold; margin-top:1.5rem; margin-bottom:0.5rem; padding-bottom:0.3rem; border-bottom:2px solid var(--border-color); color: var(--primary);">${dateOnly}</div>`;
+        }
+        
+        const bgColor = bgColorToggle ? 'var(--bg-card)' : 'transparent';
+        
+        const durSecs = log.durationSeconds || 0;
+        const durationMin = Math.floor(durSecs / 60);
+        const durationSec = durSecs % 60;
+        const durStr = durationMin > 0 ? `${durationMin}분 ${durationSec}초` : `${durationSec}초`;
+        
+        const corr = log.correct || 0;
+        const incorr = log.incorrect || 0;
+        const accuracy = (corr + incorr) > 0 ? Math.round((corr / (corr + incorr)) * 100) : 0;
+        const deckName = log.deckName || '알 수 없는 덱';
+        const mode = log.mode || '학습 모드';
+        
+        container.innerHTML += `
+        <div class="log-item" style="background: ${bgColor}; display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 1rem; border-left: 4px solid var(--primary); margin-bottom: 0.3rem; border-radius: 4px; box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); border-left-width: 4px;">
+            <div style="flex: 2; font-weight:600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 0.5rem;">${deckName}</div>
+            <div style="flex: 1; font-size: 0.85rem; color: var(--text-muted); text-align: center;">${timeOnly}</div>
+            <div style="flex: 1; font-size: 0.85rem; color: var(--text-muted); text-align: center;">${durStr}</div>
+            <div style="flex: 1; font-size: 0.85rem; color: var(--text-muted); text-align: center;">${mode}</div>
+            <div style="flex: 1; font-size: 0.85rem; font-weight:600; color: var(--primary); text-align: right;">${accuracy}%</div>
+        </div>`;
+    });
+    lucide.createIcons();
+}
+
+function moveOrder(id, type, direction) {
+    const list = type === 'folder' ? appData.folders : appData.decks;
+    const itemIndex = list.findIndex(x => x.id === id);
+    if (itemIndex === -1) return;
+    
+    const item = list[itemIndex];
+    const siblings = list.filter(x => x.parentId === item.parentId).sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
+    const currentIndex = siblings.findIndex(x => x.id === id);
+    
+    if (direction === 'up' && currentIndex > 0) {
+        const prev = siblings[currentIndex - 1];
+        const temp = item.sortIndex;
+        item.sortIndex = prev.sortIndex;
+        prev.sortIndex = temp;
+    } else if (direction === 'down' && currentIndex < siblings.length - 1) {
+        const next = siblings[currentIndex + 1];
+        const temp = item.sortIndex;
+        item.sortIndex = next.sortIndex;
+        next.sortIndex = temp;
+    }
+    
+    saveData();
+    renderDeckList();
+}
+
+function handleDragStart(e, id, type) {
+    e.dataTransfer.setData('text/plain', JSON.stringify({id, type}));
+    e.stopPropagation();
+}
+function handleDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.style.backgroundColor = 'var(--secondary-hover)';
+    
+    // Auto scroll logic when dragging
+    const y = e.clientY;
+    const h = window.innerHeight;
+    if (y < 80) {
+        window.scrollBy(0, -15);
+    } else if (h - y < 80) {
+        window.scrollBy(0, 15);
+    }
+}
+function handleDragLeave(e) {
+    e.currentTarget.style.backgroundColor = '';
+}
+function handleDrop(e, targetFolderId) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.style.backgroundColor = '';
+    
+    try {
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        if (data.type === 'folder') {
+            if (data.id === targetFolderId) return; // Cannot drop into itself
+            const f = appData.folders.find(x => x.id === data.id);
+            if (f) f.parentId = targetFolderId;
+        } else {
+            const d = appData.decks.find(x => x.id === data.id);
+            if (d) d.parentId = targetFolderId;
+        }
+        saveData();
+        renderDeckList();
+    } catch(err) {
+        console.error('Drop error', err);
+    }
+}
+
+function handleEditDeckName() {
+    const deck = appData.decks.find(d => d.id === currentDeckId);
+    if (!deck) return;
+    const newName = prompt('새로운 덱 이름을 입력하세요:', deck.name);
+    if (newName && newName.trim()) {
+        deck.name = newName.trim();
+        saveData();
+        document.getElementById('detailDeckTitle').innerText = deck.name;
+    }
+}
+
+function handleDropOnDeck(e, targetDeckId) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.style.backgroundColor = '';
+    
+    try {
+        const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+        const targetDeck = appData.decks.find(x => x.id === targetDeckId);
+        if (!targetDeck) return;
+        
+        const targetParentId = targetDeck.parentId;
+        
+        // 1. Find dragged item
+        let draggedItem = null;
+        if (data.type === 'folder') {
+            if (data.id === targetParentId) return; // Cannot place parent inside folder containing it (simple check)
+            draggedItem = appData.folders.find(x => x.id === data.id);
+        } else {
+            draggedItem = appData.decks.find(x => x.id === data.id);
+        }
+        if (!draggedItem) return;
+        
+        draggedItem.parentId = targetParentId;
+        
+        // 2. Reorder within target folder
+        const siblingFolders = appData.folders.filter(x => x.parentId === targetParentId && x.id !== draggedItem.id);
+        const siblingDecks = appData.decks.filter(x => x.parentId === targetParentId && x.id !== draggedItem.id);
+        
+        // Combine and sort siblings by current sortIndex
+        const siblings = [...siblingFolders, ...siblingDecks].sort((a, b) => (a.sortIndex || 0) - (b.sortIndex || 0));
+        
+        // Find target position
+        const targetIdx = siblings.findIndex(x => x.id === targetDeckId);
+        
+        // Insert dragged item right before target item
+        siblings.splice(targetIdx, 0, draggedItem);
+        
+        // Re-assign sortIndex values
+        siblings.forEach((item, idx) => {
+            item.sortIndex = idx;
+        });
+        
+        saveData();
+        renderDeckList();
+    } catch(err) {
+        console.error('Drop on deck error', err);
+    }
 }

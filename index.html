@@ -51,6 +51,7 @@
                 <div class="view-header">
                     <h2>나의 덱</h2>
                     <div class="view-actions">
+                        <button id="btnCreateFolder" class="btn secondary">새 폴더 만들기</button>
                         <button id="btnCreateDeck" class="btn primary">새 덱 만들기</button>
                     </div>
                 </div>
@@ -62,6 +63,7 @@
 
                 <div class="view-header mt-8">
                     <h2>전체 학습 통계</h2>
+                    <button id="btnViewLogs" class="btn outline small">상세 로그 보기</button>
                 </div>
                 <div class="stats-dashboard card-panel mb-6" id="globalStatsContainer">
                     <div class="stat-item">
@@ -105,14 +107,16 @@
                 </div>
             </section>
 
-            <!-- VIEW: Deck Details -->
             <section id="view-deck-details" class="view hidden">
                 <div class="view-header">
-                    <div class="flex-align">
+                    <div class="flex-align" style="gap: 0.5rem;">
                         <button class="icon-btn btn-back" aria-label="뒤로가기">
                             <i data-lucide="arrow-left"></i>
                         </button>
                         <h2 id="detailDeckTitle">덱 제목</h2>
+                        <button id="btnEditDeckName" class="icon-btn" aria-label="덱 이름 수정" title="덱 이름 수정">
+                            <i data-lucide="edit-2" style="width: 18px; height: 18px;"></i>
+                        </button>
                     </div>
                     <div class="view-actions">
                         <button id="btnStudyDeck" class="btn primary">
@@ -226,10 +230,70 @@
                     </div>
                 </div>
             </section>
+            <!-- VIEW: Logs -->
+            <section id="view-logs" class="view hidden">
+                <div class="view-header">
+                    <div class="flex-align">
+                        <button class="icon-btn btn-back" aria-label="뒤로가기">
+                            <i data-lucide="arrow-left"></i>
+                        </button>
+                        <h2>상세 학습 로그</h2>
+                    </div>
+                </div>
+                <div class="card-panel" style="max-height: 70vh; overflow-y: auto;">
+                    <div id="logsListContainer" style="display: flex; flex-direction: column; gap: 1rem;">
+                        <!-- Logs injected here -->
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
     <!-- Modals -->
+    <!-- Create Folder Modal -->
+    <div id="modalCreateFolder" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>새 폴더 만들기</h3>
+                <button class="icon-btn btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="folderNameInput">폴더 이름</label>
+                    <input type="text" id="folderNameInput" placeholder="예: 언어, 수학, 자격증...">
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary btn-close-modal">취소</button>
+                    <button id="btnConfirmCreateFolder" class="btn primary">만들기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Move Item Modal -->
+    <div id="modalMoveItem" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>폴더 이동</h3>
+                <button class="icon-btn btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="moveItemId">
+                <input type="hidden" id="moveItemType">
+                <div class="form-group">
+                    <label for="moveTargetSelect">이동할 위치 선택</label>
+                    <select id="moveTargetSelect" style="width:100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-family: inherit; font-size: 1rem;">
+                        <option value="root">최상위 위치 (기본)</option>
+                        <!-- Folders injected here -->
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary btn-close-modal">취소</button>
+                    <button id="btnConfirmMove" class="btn primary">이동</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- Create Deck Modal -->
     <div id="modalCreateDeck" class="modal hidden">
         <div class="modal-content">
