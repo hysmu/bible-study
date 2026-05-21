@@ -380,7 +380,13 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>내보낼 덱 선택 (다중 선택 가능)</label>
+                    <div class="flex-align-between" style="margin-bottom: 8px;">
+                        <label style="margin-bottom: 0;">내보낼 덱 선택 (다중 선택 가능)</label>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" id="btnSelectAllDecks" class="btn outline small" style="padding: 4px 8px; font-size: 0.8rem; height: auto; min-height: 0;">전체 선택</button>
+                            <button type="button" id="btnDeselectAllDecks" class="btn outline small" style="padding: 4px 8px; font-size: 0.8rem; height: auto; min-height: 0;">전체 해제</button>
+                        </div>
+                    </div>
                     <div id="csvDeckSelection"
                         style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; border-radius: var(--radius-sm);">
                         <!-- checkboxes -->

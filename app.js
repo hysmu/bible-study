@@ -171,6 +171,12 @@ function setupEventListeners() {
         openModal('modalExportCsv');
     });
     document.getElementById('btnConfirmExportCsv').addEventListener('click', handleExportCsvSelected);
+    document.getElementById('btnSelectAllDecks').addEventListener('click', () => {
+        document.querySelectorAll('.csv-deck-cb').forEach(cb => cb.checked = true);
+    });
+    document.getElementById('btnDeselectAllDecks').addEventListener('click', () => {
+        document.querySelectorAll('.csv-deck-cb').forEach(cb => cb.checked = false);
+    });
     
     document.getElementById('btnExportAll').addEventListener('click', handleExportJson);
     document.getElementById('jsonFileInput').addEventListener('change', handleImportJson);
