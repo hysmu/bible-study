@@ -76,6 +76,14 @@ function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
+function decodeHtml(html) {
+    if (!html) return '';
+    const txt = document.createElement("textarea");
+    txt.innerHTML = html;
+    return txt.value;
+}
+
+
 // ==========================================
 // 2. Event Listeners
 // ==========================================
@@ -98,9 +106,9 @@ function setupEventListeners() {
     document.getElementById('btnCreateDeck').addEventListener('click', () => openModal('modalCreateDeck'));
     document.getElementById('btnAddCard').addEventListener('click', () => {
         document.getElementById('editCardId').value = '';
-        document.getElementById('cardFrontInput').value = '';
-        document.getElementById('cardBackInput').value = '';
-        document.getElementById('cardReferenceInput').value = '';
+        document.getElementById('cardFrontInput').innerHTML = '';
+        document.getElementById('cardBackInput').innerHTML = '';
+        document.getElementById('cardReferenceInput').innerHTML = '';
         openModal('modalAddCard');
     });
     
@@ -400,8 +408,8 @@ function renderDeckDetails() {
         el.className = 'list-item-card';
         el.innerHTML = `
             <div class="list-item-content">
-                <div class="list-item-front">${card.front}</div>
-                <div class="list-item-back">${card.back}</div>
+                <div class="list-item-front">${decodeHtml(card.front)}</div>
+                <div class="list-item-back">${decodeHtml(card.back)}</div>
             </div>
             <div style="display:flex; gap:0.5rem;">
                 <button class="icon-btn btn-edit-card" data-id="${card.id}" aria-label="수정">
@@ -414,9 +422,9 @@ function renderDeckDetails() {
         `;
         el.querySelector('.btn-edit-card').addEventListener('click', () => {
             document.getElementById('editCardId').value = card.id;
-            document.getElementById('cardFrontInput').value = card.front;
-            document.getElementById('cardBackInput').value = card.back;
-            document.getElementById('cardReferenceInput').value = card.reference || '';
+            document.getElementById('cardFrontInput').innerHTML = decodeHtml(card.front);
+            document.getElementById('cardBackInput').innerHTML = decodeHtml(card.back);
+            document.getElementById('cardReferenceInput').innerHTML = decodeHtml(card.reference || '');
             openModal('modalAddCard');
         });
         el.querySelector('.btn-delete-card').addEventListener('click', () => {
@@ -459,9 +467,9 @@ function handleAddCard() {
     if (!deck) return;
     
     const editId = document.getElementById('editCardId').value;
-    const front = document.getElementById('cardFrontInput').value.trim();
-    const back = document.getElementById('cardBackInput').value.trim();
-    const reference = document.getElementById('cardReferenceInput').value.trim();
+    const front = document.getElementById('cardFrontInput').innerHTML.trim();
+    const back = document.getElementById('cardBackInput').innerHTML.trim();
+    const reference = document.getElementById('cardReferenceInput').innerHTML.trim();
     
     if (!front || !back) return alert('질문과 정답을 모두 입력하세요.');
     
@@ -617,8 +625,8 @@ function renderCurrentCard() {
     const frontText = isReversed ? card.back : card.front;
     const backText = isReversed ? card.front : card.back;
     
-    document.getElementById('cardFrontText').innerText = frontText;
-    document.getElementById('cardBackText').innerText = backText;
+    document.getElementById('cardFrontText').innerHTML = decodeHtml(frontText);
+    document.getElementById('cardBackText').innerHTML = decodeHtml(backText);
     
     const refEl = document.getElementById('cardReferenceText');
     if (card.reference && !isReversed) {
@@ -627,7 +635,7 @@ function renderCurrentCard() {
         if (card.reference.startsWith('http')) {
             refEl.querySelector('span').innerHTML = `<a href="${card.reference}" target="_blank">${card.reference}</a>`;
         } else {
-            refEl.querySelector('span').innerText = card.reference;
+            refEl.querySelector('span').innerHTML = decodeHtml(card.reference);
         }
     } else {
         refEl.style.display = 'none';
@@ -943,14 +951,14 @@ async function handleExportPdf() {
                 if (cardsPerPage === 8) {
                     frontHtml += `
                         <div style="width: calc(50% - 20px); height: 180px; margin: 10px; ${cardStyle8}">
-                            <div style="${frontText8}">${card.front}</div>
+                            <div style="${frontText8}">${decodeHtml(card.front)}</div>
                         </div>
                     `;
                 } else {
                     frontHtml += `
                         <div style="width: 100%; height: 800px; display: flex; align-items: center; justify-content: center;">
                             <div style="width: 500px; height: 350px; ${cardStyle1}">
-                                <div style="${frontText1}">${card.front}</div>
+                                <div style="${frontText1}">${decodeHtml(card.front)}</div>
                             </div>
                         </div>
                     `;
@@ -985,16 +993,16 @@ async function handleExportPdf() {
                     if (cardsPerPage === 8) {
                         backHtml += `
                             <div style="width: calc(50% - 20px); height: 180px; margin: 10px; ${cardStyle8}">
-                                <div style="${backText8}">${card.back}</div>
-                                ${card.reference ? `<div style="${refBox8}"><strong style="font-weight: 600;">참고 자료:</strong><br>${card.reference}</div>` : ''}
+                                <div style="${backText8}">${decodeHtml(card.back)}</div>
+                                ${card.reference ? `<div style="${refBox8}"><strong style="font-weight: 600;">참고 자료:</strong><br>${decodeHtml(card.reference)}</div>` : ''}
                             </div>
                         `;
                     } else {
                         backHtml += `
                         <div style="width: 100%; height: 800px; display: flex; align-items: center; justify-content: center;">
                             <div style="width: 500px; height: 350px; ${cardStyle1}">
-                                <div style="${backText1}">${card.back}</div>
-                                ${card.reference ? `<div style="${refBox1}"><strong style="font-weight: 600;">참고 자료:</strong><br>${card.reference}</div>` : ''}
+                                <div style="${backText1}">${decodeHtml(card.back)}</div>
+                                ${card.reference ? `<div style="${refBox1}"><strong style="font-weight: 600;">참고 자료:</strong><br>${decodeHtml(card.reference)}</div>` : ''}
                             </div>
                         </div>
                         `;
