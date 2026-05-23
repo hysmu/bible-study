@@ -83,6 +83,21 @@ function decodeHtml(html) {
     return txt.value;
 }
 
+/**
+ * [상세 해설] 이하 텍스트를 .detail-section span으로 감싸서
+ * 별도 색상·작은 글자로 표시되도록 HTML을 가공합니다.
+ */
+function formatAnswerHtml(html) {
+    if (!html) return '';
+    // [상세 해설] 마커 기준으로 분리 (한국어 마커)
+    const marker = '[상세 해설]';
+    const idx = html.indexOf(marker);
+    if (idx === -1) return html;
+    const before = html.substring(0, idx);
+    const after = html.substring(idx);
+    return before + '<span class="detail-section">' + after + '</span>';
+}
+
 
 // ==========================================
 // 2. Event Listeners
@@ -632,7 +647,7 @@ function renderCurrentCard() {
     const backText = isReversed ? card.front : card.back;
     
     document.getElementById('cardFrontText').innerHTML = decodeHtml(frontText);
-    document.getElementById('cardBackText').innerHTML = decodeHtml(backText);
+    document.getElementById('cardBackText').innerHTML = formatAnswerHtml(decodeHtml(backText));
     
     const refEl = document.getElementById('cardReferenceText');
     if (card.reference && !isReversed) {

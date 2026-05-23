@@ -389,15 +389,33 @@ p { color: var(--text-muted); }
 }
 
 .card-content {
-  font-size: 1.5rem;
+  font-size: 1rem;
   font-weight: 500;
   word-break: keep-all;
   overflow-wrap: break-word;
   max-width: 100%;
+  text-align: left;
+  line-height: 1.7;
 }
 
 .answer-text {
   color: var(--primary);
+}
+
+/* [상세 해설] 섹션 전용 스타일 */
+.detail-section {
+  display: block;
+  margin-top: 0.75rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--border-color);
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.detail-section b {
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .card-reference {
