@@ -383,9 +383,13 @@ p { color: var(--text-muted); }
   overflow-y: auto;
 }
 
+/* 뜻면(정답): 내용이 많을 때 상단부터 보이도록 flex-start 사용 */
 .flashcard-back {
   transform: rotateX(180deg);
   background-color: var(--bg-panel);
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding-top: 1.5rem;
 }
 
 .card-content {
