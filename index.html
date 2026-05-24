@@ -155,6 +155,20 @@
                     <button id="btnAddCard" class="btn outline small">카드 추가</button>
                 </div>
 
+                <!-- Bulk card actions -->
+                <div class="card-list-actions flex-align-between mb-4 hidden" id="cardListActions" style="background: var(--secondary); padding: 0.5rem 1rem; border-radius: var(--radius-sm);">
+                    <div class="flex-align" style="gap: 1rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer; color: var(--text-main); font-weight: 500;">
+                            <input type="checkbox" id="cbSelectAllCards" style="width: 16px; height: 16px; cursor: pointer;">
+                            <span>전체 선택</span>
+                        </label>
+                        <span id="selectedCardsCount" style="font-size: 0.9rem; color: var(--primary); font-weight: 600;">0장 선택됨</span>
+                    </div>
+                    <button id="btnMoveSelectedCards" class="btn primary small" disabled>
+                        <i data-lucide="move"></i> 선택 카드 이동
+                    </button>
+                </div>
+
                 <div class="card-list" id="cardListContainer">
                     <!-- Cards will be injected here -->
                 </div>
@@ -294,6 +308,35 @@
             </div>
         </div>
     </div>
+
+    <!-- Move Selected Cards Modal -->
+    <div id="modalMoveCards" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>선택한 카드 이동/복사</h3>
+                <button class="icon-btn btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="moveCardsTargetSelect">대상 덱 선택</label>
+                    <select id="moveCardsTargetSelect" style="width:100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-family: inherit; font-size: 1rem;">
+                        <!-- Decks injected here -->
+                    </select>
+                </div>
+                <div class="form-group" style="margin-top: 12px; margin-bottom: 8px;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal; cursor: pointer; color: var(--text-main);">
+                        <input type="checkbox" id="chkKeepOriginal" style="width: 18px; height: 18px; cursor: pointer;">
+                        <span>원본 카드를 현재 위치에 남겨두기 (복사)</span>
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary btn-close-modal">취소</button>
+                    <button id="btnConfirmMoveCards" class="btn primary">이동</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Create Deck Modal -->
     <div id="modalCreateDeck" class="modal hidden">
         <div class="modal-content">

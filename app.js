@@ -203,6 +203,108 @@ function setupEventListeners() {
     });
     document.getElementById('btnConfirmExportPdf').addEventListener('click', handleExportPdf);
     document.getElementById('btnEditDeckName').addEventListener('click', handleEditDeckName);
+    
+    // Bulk Card Selection & Move listeners
+    document.getElementById('cbSelectAllCards').addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        document.querySelectorAll('.card-select-cb').forEach(cb => {
+            cb.checked = checked;
+        });
+        updateSelectedCardsUI();
+    });
+    document.getElementById('btnMoveSelectedCards').addEventListener('click', handleOpenMoveCardsModal);
+    document.getElementById('btnConfirmMoveCards').addEventListener('click', handleConfirmMoveCards);
+    document.getElementById('chkKeepOriginal').addEventListener('change', (e) => {
+        document.getElementById('btnConfirmMoveCards').innerText = e.target.checked ? '복사' : '이동';
+    });
+}
+
+// Bulk Card Selection & Move helper functions
+function updateSelectedCardsUI() {
+    const checkboxes = document.querySelectorAll('.card-select-cb');
+    const checkedCount = document.querySelectorAll('.card-select-cb:checked').length;
+    
+    document.getElementById('selectedCardsCount').innerText = `${checkedCount}장 선택됨`;
+    
+    const btnMove = document.getElementById('btnMoveSelectedCards');
+    if (checkedCount > 0) {
+        btnMove.removeAttribute('disabled');
+    } else {
+        btnMove.setAttribute('disabled', 'true');
+    }
+    
+    const cbSelectAll = document.getElementById('cbSelectAllCards');
+    if (checkboxes.length > 0 && checkedCount === checkboxes.length) {
+        cbSelectAll.checked = true;
+    } else {
+        cbSelectAll.checked = false;
+    }
+}
+
+function handleOpenMoveCardsModal() {
+    const checkedCbs = document.querySelectorAll('.card-select-cb:checked');
+    if (checkedCbs.length === 0) return alert('선택된 카드가 없습니다.');
+    
+    const select = document.getElementById('moveCardsTargetSelect');
+    select.innerHTML = '';
+    
+    const otherDecks = appData.decks.filter(d => d.id !== currentDeckId);
+    if (otherDecks.length === 0) {
+        return alert('이동할 수 있는 다른 덱이 없습니다. 새 덱을 먼저 생성해주세요.');
+    }
+    
+    otherDecks.forEach(deck => {
+        select.innerHTML += `<option value="${deck.id}">🗂️ ${deck.name} (${deck.cards.length}장)</option>`;
+    });
+    
+    // Reset copy checkbox state and button text
+    document.getElementById('chkKeepOriginal').checked = false;
+    document.getElementById('btnConfirmMoveCards').innerText = '이동';
+    
+    openModal('modalMoveCards');
+}
+
+function handleConfirmMoveCards() {
+    const targetDeckId = document.getElementById('moveCardsTargetSelect').value;
+    if (!targetDeckId) return alert('이동할 덱을 선택해주세요.');
+    
+    const checkedCbs = document.querySelectorAll('.card-select-cb:checked');
+    if (checkedCbs.length === 0) {
+        closeModal('modalMoveCards');
+        return;
+    }
+    
+    const sourceDeck = appData.decks.find(d => d.id === currentDeckId);
+    const targetDeck = appData.decks.find(d => d.id === targetDeckId);
+    
+    if (!sourceDeck || !targetDeck) {
+        alert('덱을 찾을 수 없습니다.');
+        return;
+    }
+    
+    const keepOriginal = document.getElementById('chkKeepOriginal').checked;
+    const cardIdsToMove = Array.from(checkedCbs).map(cb => cb.dataset.id);
+    
+    let cardsToTransfer = [];
+    if (keepOriginal) {
+        // Copy mode: deep copy cards (give new IDs and reset SRS state)
+        cardsToTransfer = sourceDeck.cards
+            .filter(c => cardIdsToMove.includes(c.id))
+            .map(c => createNewCard(c.front, c.back, c.reference || ''));
+    } else {
+        // Move mode: take actual card objects and filter them out from source
+        cardsToTransfer = sourceDeck.cards.filter(c => cardIdsToMove.includes(c.id));
+        sourceDeck.cards = sourceDeck.cards.filter(c => !cardIdsToMove.includes(c.id));
+    }
+    
+    targetDeck.cards.push(...cardsToTransfer);
+    
+    saveData();
+    closeModal('modalMoveCards');
+    renderDeckDetails();
+    
+    const actionWord = keepOriginal ? '복사' : '이동';
+    alert(`${cardsToTransfer.length}개의 카드가 '${targetDeck.name}' 덱으로 ${actionWord}되었습니다.`);
 }
 
 // ==========================================
@@ -419,20 +521,30 @@ function renderDeckDetails() {
     const container = document.getElementById('cardListContainer');
     container.innerHTML = '';
     
+    const actionsToolbar = document.getElementById('cardListActions');
     if (totalCards === 0) {
+        if (actionsToolbar) actionsToolbar.classList.add('hidden');
         container.innerHTML = '<p style="text-align: center; padding: 1rem;">카드가 없습니다. 카드를 추가하거나 CSV로 가져오세요.</p>';
         return;
+    } else {
+        if (actionsToolbar) {
+            actionsToolbar.classList.remove('hidden');
+            document.getElementById('cbSelectAllCards').checked = false;
+            document.getElementById('selectedCardsCount').innerText = '0장 선택됨';
+            document.getElementById('btnMoveSelectedCards').setAttribute('disabled', 'true');
+        }
     }
     
     deck.cards.forEach(card => {
         const el = document.createElement('div');
         el.className = 'list-item-card';
         el.innerHTML = `
+            <input type="checkbox" class="card-select-cb" data-id="${card.id}" style="width: 18px; height: 18px; margin-right: 12px; cursor: pointer; flex-shrink: 0; accent-color: var(--primary);">
             <div class="list-item-content">
                 <div class="list-item-front">${decodeHtml(card.front)}</div>
                 <div class="list-item-back">${decodeHtml(card.back)}</div>
             </div>
-            <div style="display:flex; gap:0.5rem;">
+            <div style="display:flex; gap:0.5rem; align-items: center;">
                 <button class="icon-btn btn-edit-card" data-id="${card.id}" aria-label="수정">
                     <i data-lucide="edit"></i>
                 </button>
@@ -441,6 +553,7 @@ function renderDeckDetails() {
                 </button>
             </div>
         `;
+        el.querySelector('.card-select-cb').addEventListener('change', updateSelectedCardsUI);
         el.querySelector('.btn-edit-card').addEventListener('click', () => {
             document.getElementById('editCardId').value = card.id;
             document.getElementById('cardFrontInput').innerHTML = decodeHtml(card.front);
