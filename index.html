@@ -443,6 +443,63 @@
         </div>
     </div>
 
+    <!-- Split Card Modal -->
+    <div id="modalSplitCard" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>카드 분할</h3>
+                <button class="icon-btn btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="splitCardId">
+                <p class="mb-4" style="font-size: 0.9rem; color: var(--text-muted);">
+                    현재 카드를 두 개의 카드로 분할합니다. 질문(앞면)과 정답(뒷면)의 내용을 나누어 배치해 주세요.
+                </p>
+                
+                <div style="display: flex; flex-direction: column; gap: 1rem; max-height: 55vh; overflow-y: auto; padding-right: 0.5rem; margin-bottom: 1rem;">
+                    <!-- Card 1 -->
+                    <div style="border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-sm); background: var(--bg-color);">
+                        <h4 style="margin-bottom: 0.5rem; color: var(--primary); font-size: 0.95rem; font-weight: 600;">첫 번째 카드 (기존 카드 수정)</h4>
+                        <div class="form-group">
+                            <label for="splitCard1Front">질문 (앞면)</label>
+                            <div id="splitCard1Front" contenteditable="true" class="rich-textarea" placeholder="첫 번째 질문을 입력하세요"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="splitCard1Back">정답 (뒷면)</label>
+                            <div id="splitCard1Back" contenteditable="true" class="rich-textarea" placeholder="첫 번째 정답을 입력하세요"></div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="splitCard1Reference">참고자료 (옵션)</label>
+                            <div id="splitCard1Reference" contenteditable="true" class="rich-textarea" placeholder="참고자료를 입력하세요"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Card 2 -->
+                    <div style="border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-sm); background: var(--bg-color);">
+                        <h4 style="margin-bottom: 0.5rem; color: var(--primary); font-size: 0.95rem; font-weight: 600;">두 번째 카드 (새 카드로 분할 삽입)</h4>
+                        <div class="form-group">
+                            <label for="splitCard2Front">질문 (앞면)</label>
+                            <div id="splitCard2Front" contenteditable="true" class="rich-textarea" placeholder="두 번째 질문을 입력하세요"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="splitCard2Back">정답 (뒷면)</label>
+                            <div id="splitCard2Back" contenteditable="true" class="rich-textarea" placeholder="두 번째 정답을 입력하세요"></div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="splitCard2Reference">참고자료 (옵션)</label>
+                            <div id="splitCard2Reference" contenteditable="true" class="rich-textarea" placeholder="참고자료를 입력하세요"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button class="btn secondary btn-close-modal">취소</button>
+                    <button id="btnConfirmSplitCard" class="btn primary">분할 완료</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Invisible Container for PDF Export -->
     <div id="pdfExportContainer" style="position: absolute; left: -9999px; top: -9999px;"></div>
 

@@ -203,6 +203,7 @@ function setupEventListeners() {
     });
     document.getElementById('btnConfirmExportPdf').addEventListener('click', handleExportPdf);
     document.getElementById('btnEditDeckName').addEventListener('click', handleEditDeckName);
+    document.getElementById('btnConfirmSplitCard').addEventListener('click', handleConfirmSplitCard);
     
     // Bulk Card Selection & Move listeners
     document.getElementById('cbSelectAllCards').addEventListener('change', (e) => {
@@ -545,6 +546,12 @@ function renderDeckDetails() {
                 <div class="list-item-back">${decodeHtml(card.back)}</div>
             </div>
             <div style="display:flex; gap:0.5rem; align-items: center;">
+                <button class="icon-btn btn-copy-card" data-id="${card.id}" title="복제" aria-label="복제">
+                    <i data-lucide="copy"></i>
+                </button>
+                <button class="icon-btn btn-split-card" data-id="${card.id}" title="분할" aria-label="분할">
+                    <i data-lucide="scissors"></i>
+                </button>
                 <button class="icon-btn btn-edit-card" data-id="${card.id}" aria-label="수정">
                     <i data-lucide="edit"></i>
                 </button>
@@ -554,6 +561,8 @@ function renderDeckDetails() {
             </div>
         `;
         el.querySelector('.card-select-cb').addEventListener('change', updateSelectedCardsUI);
+        el.querySelector('.btn-copy-card').addEventListener('click', () => handleDuplicateCard(card.id));
+        el.querySelector('.btn-split-card').addEventListener('click', () => handleOpenSplitModal(card));
         el.querySelector('.btn-edit-card').addEventListener('click', () => {
             document.getElementById('editCardId').value = card.id;
             document.getElementById('cardFrontInput').innerHTML = decodeHtml(card.front);
@@ -640,6 +649,79 @@ function createNewCard(front, back, reference = '') {
             incorrect: 0
         }
     };
+}
+
+function handleDuplicateCard(cardId) {
+    const deck = appData.decks.find(d => d.id === currentDeckId);
+    if (!deck) return;
+    
+    const idx = deck.cards.findIndex(c => c.id === cardId);
+    if (idx === -1) return;
+    
+    const originalCard = deck.cards[idx];
+    // Create duplicated card with new ID and reset stats
+    const duplicatedCard = createNewCard(originalCard.front, originalCard.back, originalCard.reference || '');
+    
+    // Insert right after original card
+    deck.cards.splice(idx + 1, 0, duplicatedCard);
+    
+    saveData();
+    renderDeckDetails();
+}
+
+function handleOpenSplitModal(card) {
+    document.getElementById('splitCardId').value = card.id;
+    
+    // Populating first card with current content
+    document.getElementById('splitCard1Front').innerHTML = decodeHtml(card.front);
+    document.getElementById('splitCard1Back').innerHTML = decodeHtml(card.back);
+    document.getElementById('splitCard1Reference').innerHTML = decodeHtml(card.reference || '');
+    
+    // Populating second card: front & back are blank, reference is pre-populated for convenience
+    document.getElementById('splitCard2Front').innerHTML = '';
+    document.getElementById('splitCard2Back').innerHTML = '';
+    document.getElementById('splitCard2Reference').innerHTML = decodeHtml(card.reference || '');
+    
+    openModal('modalSplitCard');
+}
+
+function handleConfirmSplitCard() {
+    const deck = appData.decks.find(d => d.id === currentDeckId);
+    if (!deck) return;
+    
+    const cardId = document.getElementById('splitCardId').value;
+    const idx = deck.cards.findIndex(c => c.id === cardId);
+    if (idx === -1) {
+        closeModal('modalSplitCard');
+        return;
+    }
+    
+    const originalCard = deck.cards[idx];
+    
+    const front1 = document.getElementById('splitCard1Front').innerHTML.trim();
+    const back1 = document.getElementById('splitCard1Back').innerHTML.trim();
+    const ref1 = document.getElementById('splitCard1Reference').innerHTML.trim();
+    
+    const front2 = document.getElementById('splitCard2Front').innerHTML.trim();
+    const back2 = document.getElementById('splitCard2Back').innerHTML.trim();
+    const ref2 = document.getElementById('splitCard2Reference').innerHTML.trim();
+    
+    if (!front1 || !back1 || !front2 || !back2) {
+        return alert('분할할 두 카드 모두 질문과 정답을 입력해야 합니다.');
+    }
+    
+    // 1. Update original card with Card 1 values (retains SRS progress)
+    originalCard.front = front1;
+    originalCard.back = back1;
+    originalCard.reference = ref1;
+    
+    // 2. Create and insert Card 2
+    const splitCard = createNewCard(front2, back2, ref2);
+    deck.cards.splice(idx + 1, 0, splitCard);
+    
+    saveData();
+    closeModal('modalSplitCard');
+    renderDeckDetails();
 }
 
 // ==========================================
