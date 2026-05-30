@@ -349,7 +349,7 @@ function renderDeckList() {
     container.innerHTML = '';
     
     appData.folders.sort((a,b) => (a.sortIndex || 0) - (b.sortIndex || 0));
-    appData.decks.sort((a,b) => (a.sortIndex || 0) - (b.sortIndex || 0));
+    appData.decks.sort((a,b) => a.name.localeCompare(b.name, 'ko-KR', { numeric: true }));
 
     function renderNode(parentId, depth) {
         let html = '';
@@ -366,6 +366,7 @@ function renderDeckList() {
                     <div class="folder-actions">
                         <button class="icon-btn" onclick="moveOrder('${f.id}', 'folder', 'up'); event.stopPropagation();" title="위로"><i data-lucide="chevron-up"></i></button>
                         <button class="icon-btn" onclick="moveOrder('${f.id}', 'folder', 'down'); event.stopPropagation();" title="아래로"><i data-lucide="chevron-down"></i></button>
+                        <button class="icon-btn" onclick="renameFolder('${f.id}'); event.stopPropagation();" title="이름 수정"><i data-lucide="edit-2"></i></button>
                         <button class="icon-btn" onclick="openMoveModal('${f.id}', 'folder'); event.stopPropagation();" title="이동"><i data-lucide="move"></i></button>
                         <button class="icon-btn" onclick="deleteFolder('${f.id}'); event.stopPropagation();" title="삭제"><i data-lucide="trash-2"></i></button>
                     </div>
@@ -386,8 +387,6 @@ function renderDeckList() {
                     <div class="deck-stats-tree">카드 ${totalCards}장 | ${dueCardsCount}장 대기</div>
                 </div>
                 <div class="deck-actions-tree">
-                    <button class="icon-btn" onclick="moveOrder('${deck.id}', 'deck', 'up'); event.stopPropagation();" title="위로"><i data-lucide="chevron-up"></i></button>
-                    <button class="icon-btn" onclick="moveOrder('${deck.id}', 'deck', 'down'); event.stopPropagation();" title="아래로"><i data-lucide="chevron-down"></i></button>
                     <button class="icon-btn" onclick="openMoveModal('${deck.id}', 'deck'); event.stopPropagation();" title="이동"><i data-lucide="move"></i></button>
                     <button class="icon-btn" onclick="deleteDeck('${deck.id}'); event.stopPropagation();" title="삭제"><i data-lucide="trash-2"></i></button>
                 </div>
@@ -439,6 +438,17 @@ function deleteFolder(id) {
         }
         appData.folders = appData.folders.filter(f => !idsToDelete.includes(f.id));
         appData.decks = appData.decks.filter(d => !idsToDelete.includes(d.parentId));
+        saveData();
+        renderDeckList();
+    }
+}
+
+function renameFolder(id) {
+    const folder = appData.folders.find(f => f.id === id);
+    if (!folder) return;
+    const newName = prompt('새로운 폴더 이름을 입력하세요:', folder.name);
+    if (newName && newName.trim()) {
+        folder.name = newName.trim();
         saveData();
         renderDeckList();
     }
