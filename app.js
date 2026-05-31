@@ -694,6 +694,9 @@ function renderDeckDetails() {
                 <div class="list-item-back">${decodeHtml(card.back)}</div>
             </div>
             <div style="display:flex; gap:0.5rem; align-items: center;">
+                <button class="icon-btn btn-play-card" data-id="${card.id}" title="이 카드부터 순차 학습 시작" aria-label="학습 시작">
+                    <i data-lucide="play-circle"></i>
+                </button>
                 <button class="icon-btn btn-copy-card" data-id="${card.id}" title="복제" aria-label="복제">
                     <i data-lucide="copy"></i>
                 </button>
@@ -709,6 +712,7 @@ function renderDeckDetails() {
             </div>
         `;
         el.querySelector('.card-select-cb').addEventListener('change', updateSelectedCardsUI);
+        el.querySelector('.btn-play-card').addEventListener('click', () => startStudyFromCard(card.id));
         el.querySelector('.btn-copy-card').addEventListener('click', () => handleDuplicateCard(card.id));
         el.querySelector('.btn-split-card').addEventListener('click', () => handleOpenSplitModal(card));
         el.querySelector('.btn-edit-card').addEventListener('click', () => {
@@ -1767,3 +1771,36 @@ function applyStyleToSelection(styleName, styleValue) {
         saveActiveCardEdits();
     }
 }
+
+function startStudyFromCard(cardId) {
+    const deck = appData.decks.find(d => d.id === currentDeckId);
+    if (!deck || deck.cards.length === 0) return;
+    
+    const startIdx = deck.cards.findIndex(c => c.id === cardId);
+    if (startIdx === -1) return;
+    
+    // Create wrap-around list starting from startIdx
+    currentStudyCards = [
+        ...deck.cards.slice(startIdx),
+        ...deck.cards.slice(0, startIdx)
+    ];
+    
+    currentStudyIndex = 0;
+    isReversed = false;
+    document.getElementById('btnToggleReverse').style.color = 'inherit';
+    
+    currentStudySession = {
+        id: generateId(),
+        deckId: currentDeckId,
+        deckName: deck.name,
+        mode: '순차 학습',
+        startTime: Date.now(),
+        totalCards: currentStudyCards.length,
+        correct: 0,
+        incorrect: 0
+    };
+    
+    switchView('study');
+    renderCurrentCard();
+}
+
