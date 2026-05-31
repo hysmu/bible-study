@@ -48,6 +48,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
+    // Initialize TTS Speed from settings
+    if (!appData.settings) appData.settings = {};
+    if (appData.settings.ttsSpeed === undefined) {
+        appData.settings.ttsSpeed = 1.0;
+    }
+    const speedSlider = document.getElementById('ttsSpeedSlider');
+    const speedVal = document.getElementById('ttsSpeedVal');
+    if (speedSlider && speedVal) {
+        speedSlider.value = appData.settings.ttsSpeed;
+        speedVal.innerText = `${parseFloat(appData.settings.ttsSpeed).toFixed(1)}x`;
+    }
+    
     setupEventListeners();
     renderDeckList();
     renderGlobalStats();
@@ -140,10 +152,51 @@ function setupEventListeners() {
     
     // Study
     document.getElementById('btnStudyDeck').addEventListener('click', startStudySession);
-    document.getElementById('btnStudyAllDeck').addEventListener('click', () => startStudyAllSession(false));
-    document.getElementById('btnStudyRandomDeck').addEventListener('click', () => startStudyAllSession(true));
     document.getElementById('activeFlashcard').addEventListener('click', flipCard);
     document.getElementById('btnShowAnswer').addEventListener('click', showAnswer);
+    
+    // Study Option Radio Change Events (toggle active class on parent labels)
+    document.querySelectorAll('input[name="studyModeOption"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            document.querySelectorAll('.study-option-label').forEach(lbl => lbl.classList.remove('active'));
+            if (e.target.checked) {
+                e.target.closest('.study-option-label').classList.add('active');
+            }
+        });
+    });
+
+    // TTS Speed Slider Input Event
+    const speedSlider = document.getElementById('ttsSpeedSlider');
+    if (speedSlider) {
+        speedSlider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value).toFixed(1);
+            const speedVal = document.getElementById('ttsSpeedVal');
+            if (speedVal) speedVal.innerText = `${val}x`;
+            if (!appData.settings) appData.settings = {};
+            appData.settings.ttsSpeed = parseFloat(val);
+            saveData();
+        });
+    }
+
+    // Editable Card Content Click & Blur Handlers
+    const frontTextEl = document.getElementById('cardFrontText');
+    const backTextEl = document.getElementById('cardBackText');
+    const refSpanEl = document.getElementById('cardReferenceSpan');
+    const refContainerEl = document.getElementById('cardReferenceText');
+
+    [frontTextEl, backTextEl, refSpanEl, refContainerEl].forEach(el => {
+        if (el) {
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
+    });
+
+    [frontTextEl, backTextEl, refSpanEl].forEach(el => {
+        if (el) {
+            el.addEventListener('blur', saveActiveCardEdits);
+        }
+    });
     
     document.querySelectorAll('.srs-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
@@ -751,47 +804,31 @@ function startStudySession() {
     const deck = appData.decks.find(d => d.id === currentDeckId);
     if (!deck) return;
     
-    // Select cards that are due
-    currentStudyCards = deck.cards.filter(isCardDue);
+    const optionEl = document.querySelector('input[name="studyModeOption"]:checked');
+    const modeOption = optionEl ? optionEl.value : 'due';
     
-    if (currentStudyCards.length === 0) {
-        return alert('지금 학습할 카드가 없습니다! 훌륭합니다.');
-    }
+    let studyModeName = '대기 학습';
     
-    // Shuffle cards
-    currentStudyCards.sort(() => Math.random() - 0.5);
-    currentStudyIndex = 0;
-    isReversed = false;
-    document.getElementById('btnToggleReverse').style.color = 'inherit';
-    
-    currentStudySession = {
-        id: generateId(),
-        deckId: currentDeckId,
-        deckName: deck.name,
-        mode: '대기 학습',
-        startTime: Date.now(),
-        totalCards: currentStudyCards.length,
-        correct: 0,
-        incorrect: 0
-    };
-    
-    switchView('study');
-    renderCurrentCard();
-}
-
-function startStudyAllSession(isRandom) {
-    const deck = appData.decks.find(d => d.id === currentDeckId);
-    if (!deck) return;
-    
-    currentStudyCards = [...deck.cards];
-    
-    if (currentStudyCards.length === 0) {
-        return alert('학습할 카드가 없습니다.');
-    }
-    
-    if (isRandom) {
+    if (modeOption === 'due') {
+        currentStudyCards = deck.cards.filter(isCardDue);
+        if (currentStudyCards.length === 0) {
+            currentStudyCards = [...deck.cards]; // Fallback to all cards (review)
+        }
+        currentStudyCards.sort(() => Math.random() - 0.5); // Shuffle for spaced repetition
+        studyModeName = '대기 학습';
+    } else if (modeOption === 'sequence') {
+        currentStudyCards = [...deck.cards];
+        studyModeName = '순차 학습';
+    } else if (modeOption === 'random') {
+        currentStudyCards = [...deck.cards];
         currentStudyCards.sort(() => Math.random() - 0.5);
+        studyModeName = '랜덤 학습';
     }
+    
+    if (currentStudyCards.length === 0) {
+        return alert('학습할 카드가 없습니다. 카드를 추가해 주세요.');
+    }
+    
     currentStudyIndex = 0;
     isReversed = false;
     document.getElementById('btnToggleReverse').style.color = 'inherit';
@@ -800,7 +837,7 @@ function startStudyAllSession(isRandom) {
         id: generateId(),
         deckId: currentDeckId,
         deckName: deck.name,
-        mode: isRandom ? '랜덤 복습' : '순차 복습',
+        mode: studyModeName,
         startTime: Date.now(),
         totalCards: currentStudyCards.length,
         correct: 0,
@@ -855,13 +892,17 @@ function renderCurrentCard() {
     document.getElementById('cardBackText').innerHTML = formatAnswerHtml(decodeHtml(backText));
     
     const refEl = document.getElementById('cardReferenceText');
-    if (card.reference && !isReversed) {
+    if (!isReversed) {
         refEl.style.display = 'block';
-        // Auto-linkify http references if it starts with http
-        if (card.reference.startsWith('http')) {
-            refEl.querySelector('span').innerHTML = `<a href="${card.reference}" target="_blank">${card.reference}</a>`;
+        const refSpan = document.getElementById('cardReferenceSpan');
+        if (card.reference) {
+            if (card.reference.startsWith('http')) {
+                refSpan.innerHTML = `<a href="${card.reference}" target="_blank">${card.reference}</a>`;
+            } else {
+                refSpan.innerHTML = decodeHtml(card.reference);
+            }
         } else {
-            refEl.querySelector('span').innerHTML = decodeHtml(card.reference);
+            refSpan.innerHTML = '';
         }
     } else {
         refEl.style.display = 'none';
@@ -1012,6 +1053,9 @@ function speakText(text) {
         const utterance = new SpeechSynthesisUtterance(text);
         // Try to auto-detect Korean, but let the browser decide default
         // utterance.lang = 'ko-KR'; 
+        if (appData.settings && appData.settings.ttsSpeed !== undefined) {
+            utterance.rate = appData.settings.ttsSpeed;
+        }
         window.speechSynthesis.speak(utterance);
     } else {
         alert('이 브라우저는 음성 변환 기능을 지원하지 않습니다.');
@@ -1491,4 +1535,49 @@ function handleDropOnDeck(e, targetDeckId) {
     } catch(err) {
         console.error('Drop on deck error', err);
     }
+}
+
+function saveActiveCardEdits() {
+    if (!currentStudyCards || currentStudyCards.length === 0) return;
+    const card = currentStudyCards[currentStudyIndex];
+    if (!card) return;
+    
+    const deck = appData.decks.find(d => d.id === currentDeckId);
+    if (!deck) return;
+    
+    const cardInDeck = deck.cards.find(c => c.id === card.id);
+    if (!cardInDeck) return;
+    
+    const frontText = document.getElementById('cardFrontText').innerHTML.trim();
+    const backTextRaw = document.getElementById('cardBackText').innerHTML.trim();
+    
+    const refSpan = document.getElementById('cardReferenceSpan');
+    const refText = refSpan ? refSpan.innerHTML.trim() : '';
+    
+    // Clean backText to strip formatting tag
+    const backText = cleanHtmlForSaving(backTextRaw);
+    
+    if (isReversed) {
+        cardInDeck.back = frontText;
+        cardInDeck.front = backText;
+    } else {
+        cardInDeck.front = frontText;
+        cardInDeck.back = backText;
+    }
+    cardInDeck.reference = refText;
+    
+    // Sync active study card reference
+    card.front = cardInDeck.front;
+    card.back = cardInDeck.back;
+    card.reference = cardInDeck.reference;
+    
+    saveData();
+}
+
+function cleanHtmlForSaving(html) {
+    if (!html) return '';
+    return html
+        .replace(/<span class="detail-section">([\s\S]*?)<\/span>/gi, '$1')
+        .replace(/<span class="detail-section">/gi, '')
+        .replace(/<\/span>/gi, '');
 }

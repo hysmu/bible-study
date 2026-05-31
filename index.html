@@ -118,15 +118,23 @@
                             <i data-lucide="edit-2" style="width: 18px; height: 18px;"></i>
                         </button>
                     </div>
-                    <div class="view-actions">
+                    <div class="view-actions study-actions-container">
+                        <div class="study-options-group">
+                            <label class="study-option-label active">
+                                <input type="radio" name="studyModeOption" value="due" checked style="display: none;">
+                                <span>대기 학습</span>
+                            </label>
+                            <label class="study-option-label">
+                                <input type="radio" name="studyModeOption" value="sequence" style="display: none;">
+                                <span>순차 학습</span>
+                            </label>
+                            <label class="study-option-label">
+                                <input type="radio" name="studyModeOption" value="random" style="display: none;">
+                                <span>랜덤 학습</span>
+                            </label>
+                        </div>
                         <button id="btnStudyDeck" class="btn primary">
-                            <i data-lucide="play"></i> 대기 학습
-                        </button>
-                        <button id="btnStudyAllDeck" class="btn secondary" title="순서대로 복습">
-                            <i data-lucide="repeat"></i> 순차 복습
-                        </button>
-                        <button id="btnStudyRandomDeck" class="btn secondary" title="랜덤으로 섞어서 복습">
-                            <i data-lucide="shuffle"></i> 랜덤 복습
+                            <i data-lucide="play"></i> 학습 하기
                         </button>
                         <button id="btnExportPdf" class="btn outline">
                             <i data-lucide="file-text"></i> PDF 출력
@@ -186,7 +194,12 @@
                             <div class="progress-bar-fill" id="studyProgressBar"></div>
                         </div>
                     </div>
-                    <div class="study-actions" style="display:flex; gap:0.5rem;">
+                    <div class="study-actions" style="display:flex; gap:0.5rem; align-items:center;">
+                        <div class="tts-speed-control" title="읽기 속도 조절">
+                            <i data-lucide="gauge"></i>
+                            <input type="range" id="ttsSpeedSlider" min="0.5" max="2.0" step="0.1" value="1.0">
+                            <span id="ttsSpeedVal">1.0x</span>
+                        </div>
                         <button id="btnToggleAutoPlay" class="icon-btn" aria-label="자동 재생" title="자동 재생 시작">
                             <i data-lucide="play-circle" id="autoPlayIcon"></i>
                         </button>
@@ -204,16 +217,16 @@
                                 <button class="btn-tts tts-front" aria-label="읽기">
                                     <i data-lucide="volume-2"></i>
                                 </button>
-                                <div class="card-content" id="cardFrontText">앞면 내용</div>
+                                <div class="card-content" id="cardFrontText" contenteditable="true">앞면 내용</div>
                                 <div class="hint-text">클릭하여 뒤집기</div>
                             </div>
                             <div class="flashcard-back">
                                 <button class="btn-tts tts-back" aria-label="읽기">
                                     <i data-lucide="volume-2"></i>
                                 </button>
-                                <div class="card-content answer-text" id="cardBackText">뒷면 정답</div>
+                                <div class="card-content answer-text" id="cardBackText" contenteditable="true">뒷면 정답</div>
                                 <div class="card-reference" id="cardReferenceText" style="display: none;">
-                                    <strong>참고 자료:</strong> <span></span>
+                                    <strong>참고 자료:</strong> <span id="cardReferenceSpan" contenteditable="true"></span>
                                 </div>
                             </div>
                         </div>
