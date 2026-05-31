@@ -15,6 +15,7 @@ let appData = {
 
 let currentStudySession = null;
 let currentFolderId = 'root';
+let activeEditableEl = null;
 
 let currentDeckId = null;
 let currentStudyCards = [];
@@ -275,9 +276,11 @@ function setupEventListeners() {
     // Formatting Toolbar Configuration
     const toolbar = document.getElementById('editorToolbar');
     if (toolbar) {
-        // Prevent loss of focus on active contenteditable when clicking toolbar buttons
+        // Prevent loss of focus on active contenteditable ONLY when clicking toolbar buttons, NOT select elements!
         toolbar.addEventListener('mousedown', (e) => {
-            e.preventDefault();
+            if (!e.target.closest('select')) {
+                e.preventDefault();
+            }
         });
         
         // Setup Toolbar Button Actions
@@ -285,12 +288,12 @@ function setupEventListeners() {
             btn.addEventListener('click', (e) => {
                 const command = e.currentTarget.dataset.command;
                 if (command) {
+                    if (activeEditableEl) activeEditableEl.focus();
                     document.execCommand(command, false, null);
                     // Trigger input/change on active element to save immediately
-                    const activeEl = document.activeElement;
-                    if (activeEl && activeEl.getAttribute('contenteditable') === 'true') {
-                        activeEl.dispatchEvent(new Event('input', { bubbles: true }));
-                        if (activeEl.id === 'cardFrontText' || activeEl.id === 'cardBackText' || activeEl.id === 'cardReferenceSpan') {
+                    if (activeEditableEl) {
+                        activeEditableEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        if (activeEditableEl.id === 'cardFrontText' || activeEditableEl.id === 'cardBackText' || activeEditableEl.id === 'cardReferenceSpan') {
                             saveActiveCardEdits();
                         }
                     }
@@ -331,6 +334,8 @@ function setupEventListeners() {
     // Dynamic show/hide formatting toolbar based on any contenteditable focus in the app
     document.addEventListener('focusin', (e) => {
         if (e.target && e.target.getAttribute('contenteditable') === 'true') {
+            if (e.target.closest('.view.hidden')) return; // Ignore if focused inside hidden view
+            activeEditableEl = e.target; // Store reference to active contenteditable element
             setTimeout(() => {
                 showToolbarAtElement(e.target);
             }, 50);
@@ -342,6 +347,7 @@ function setupEventListeners() {
             setTimeout(() => {
                 const activeEl = document.activeElement;
                 const toolbar = document.getElementById('editorToolbar');
+                // Check if activeEl is inside the toolbar or is another contenteditable area
                 if (toolbar && !toolbar.contains(activeEl) && (!activeEl || activeEl.getAttribute('contenteditable') !== 'true')) {
                     hideToolbar();
                 }
@@ -1716,25 +1722,28 @@ function hideToolbar() {
 }
 
 function applyStyleToSelection(styleName, styleValue) {
+    if (!activeEditableEl) return;
+    
+    // Restore focus to keep selection active inside contenteditable area
+    activeEditableEl.focus();
+    
     const selection = window.getSelection();
-    const activeEl = document.activeElement;
-    if (!activeEl || activeEl.getAttribute('contenteditable') !== 'true') return;
 
     if (!selection.rangeCount || selection.getRangeAt(0).collapsed) {
         // No text selected, apply format to the entire editor container
         if (styleName === 'fontSize') {
-            activeEl.style.fontSize = styleValue;
+            activeEditableEl.style.fontSize = styleValue;
         } else if (styleName === 'lineHeight') {
-            activeEl.style.lineHeight = styleValue;
+            activeEditableEl.style.lineHeight = styleValue;
         } else if (styleName === 'color') {
-            activeEl.style.color = styleValue;
+            activeEditableEl.style.color = styleValue;
         } else if (styleName === 'backgroundColor') {
-            activeEl.style.backgroundColor = styleValue;
+            activeEditableEl.style.backgroundColor = styleValue;
         }
         
         // Trigger save and input event
-        activeEl.dispatchEvent(new Event('input', { bubbles: true }));
-        if (activeEl.id === 'cardFrontText' || activeEl.id === 'cardBackText' || activeEl.id === 'cardReferenceSpan') {
+        activeEditableEl.dispatchEvent(new Event('input', { bubbles: true }));
+        if (activeEditableEl.id === 'cardFrontText' || activeEditableEl.id === 'cardBackText' || activeEditableEl.id === 'cardReferenceSpan') {
             saveActiveCardEdits();
         }
         return;
@@ -1766,8 +1775,8 @@ function applyStyleToSelection(styleName, styleValue) {
     newRange.selectNodeContents(span);
     selection.addRange(newRange);
     
-    activeEl.dispatchEvent(new Event('input', { bubbles: true }));
-    if (activeEl.id === 'cardFrontText' || activeEl.id === 'cardBackText' || activeEl.id === 'cardReferenceSpan') {
+    activeEditableEl.dispatchEvent(new Event('input', { bubbles: true }));
+    if (activeEditableEl.id === 'cardFrontText' || activeEditableEl.id === 'cardBackText' || activeEditableEl.id === 'cardReferenceSpan') {
         saveActiveCardEdits();
     }
 }
