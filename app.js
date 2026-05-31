@@ -271,6 +271,83 @@ function setupEventListeners() {
     document.getElementById('chkKeepOriginal').addEventListener('change', (e) => {
         document.getElementById('btnConfirmMoveCards').innerText = e.target.checked ? '복사' : '이동';
     });
+
+    // Formatting Toolbar Configuration
+    const toolbar = document.getElementById('editorToolbar');
+    if (toolbar) {
+        // Prevent loss of focus on active contenteditable when clicking toolbar buttons
+        toolbar.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+        });
+        
+        // Setup Toolbar Button Actions
+        toolbar.querySelectorAll('.toolbar-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const command = e.currentTarget.dataset.command;
+                if (command) {
+                    document.execCommand(command, false, null);
+                    // Trigger input/change on active element to save immediately
+                    const activeEl = document.activeElement;
+                    if (activeEl && activeEl.getAttribute('contenteditable') === 'true') {
+                        activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        if (activeEl.id === 'cardFrontText' || activeEl.id === 'cardBackText' || activeEl.id === 'cardReferenceSpan') {
+                            saveActiveCardEdits();
+                        }
+                    }
+                }
+            });
+        });
+
+        // Setup Dropdown Actions
+        document.getElementById('toolbarFontSize').addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (val) {
+                applyStyleToSelection('fontSize', val);
+            }
+            e.target.value = ''; // Reset select
+        });
+        
+        document.getElementById('toolbarLineHeight').addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (val) {
+                applyStyleToSelection('lineHeight', val);
+            }
+            e.target.value = ''; // Reset select
+        });
+        
+        document.getElementById('toolbarHighlight').addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (val) {
+                if (val.startsWith('color:')) {
+                    applyStyleToSelection('color', val.split(':')[1]);
+                } else if (val.startsWith('bg:')) {
+                    applyStyleToSelection('backgroundColor', val.split(':')[1]);
+                }
+            }
+            e.target.value = ''; // Reset select
+        });
+    }
+
+    // Dynamic show/hide formatting toolbar based on any contenteditable focus in the app
+    document.addEventListener('focusin', (e) => {
+        if (e.target && e.target.getAttribute('contenteditable') === 'true') {
+            setTimeout(() => {
+                showToolbarAtElement(e.target);
+            }, 50);
+        }
+    });
+
+    document.addEventListener('focusout', (e) => {
+        if (e.target && e.target.getAttribute('contenteditable') === 'true') {
+            setTimeout(() => {
+                const activeEl = document.activeElement;
+                const toolbar = document.getElementById('editorToolbar');
+                if (toolbar && !toolbar.contains(activeEl) && (!activeEl || activeEl.getAttribute('contenteditable') !== 'true')) {
+                    hideToolbar();
+                }
+            }, 150);
+        }
+    });
 }
 
 // Bulk Card Selection & Move helper functions
@@ -1580,4 +1657,93 @@ function cleanHtmlForSaving(html) {
         .replace(/<span class="detail-section">([\s\S]*?)<\/span>/gi, '$1')
         .replace(/<span class="detail-section">/gi, '')
         .replace(/<\/span>/gi, '');
+}
+
+function showToolbarAtElement(el) {
+    const toolbar = document.getElementById('editorToolbar');
+    if (!toolbar) return;
+    
+    toolbar.classList.remove('hidden');
+    
+    const rect = el.getBoundingClientRect();
+    const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    
+    // Position toolbar dynamically above the editable area
+    let top = rect.top + scrollTop - toolbar.offsetHeight - 8;
+    let left = rect.left + scrollLeft + (rect.width - toolbar.offsetWidth) / 2;
+    
+    // Safety boundaries
+    if (top < 0) {
+        top = rect.bottom + scrollTop + 8; // Show below if goes off screen top
+    }
+    if (left < 8) left = 8;
+    if (left + toolbar.offsetWidth > window.innerWidth) {
+        left = window.innerWidth - toolbar.offsetWidth - 8;
+    }
+    
+    toolbar.style.top = `${top}px`;
+    toolbar.style.left = `${left}px`;
+}
+
+function hideToolbar() {
+    const toolbar = document.getElementById('editorToolbar');
+    if (toolbar) toolbar.classList.add('hidden');
+}
+
+function applyStyleToSelection(styleName, styleValue) {
+    const selection = window.getSelection();
+    const activeEl = document.activeElement;
+    if (!activeEl || activeEl.getAttribute('contenteditable') !== 'true') return;
+
+    if (!selection.rangeCount || selection.getRangeAt(0).collapsed) {
+        // No text selected, apply format to the entire editor container
+        if (styleName === 'fontSize') {
+            activeEl.style.fontSize = styleValue;
+        } else if (styleName === 'lineHeight') {
+            activeEl.style.lineHeight = styleValue;
+        } else if (styleName === 'color') {
+            activeEl.style.color = styleValue;
+        } else if (styleName === 'backgroundColor') {
+            activeEl.style.backgroundColor = styleValue;
+        }
+        
+        // Trigger save and input event
+        activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+        if (activeEl.id === 'cardFrontText' || activeEl.id === 'cardBackText' || activeEl.id === 'cardReferenceSpan') {
+            saveActiveCardEdits();
+        }
+        return;
+    }
+    
+    const range = selection.getRangeAt(0);
+    const span = document.createElement('span');
+    
+    if (styleName === 'fontSize') {
+        span.style.fontSize = styleValue;
+    } else if (styleName === 'lineHeight') {
+        span.style.lineHeight = styleValue;
+    } else if (styleName === 'color') {
+        span.style.color = styleValue;
+    } else if (styleName === 'backgroundColor') {
+        span.style.backgroundColor = styleValue;
+    }
+    
+    try {
+        range.surroundContents(span);
+    } catch (e) {
+        const fragment = range.extractContents();
+        span.appendChild(fragment);
+        range.insertNode(span);
+    }
+    
+    selection.removeAllRanges();
+    const newRange = document.createRange();
+    newRange.selectNodeContents(span);
+    selection.addRange(newRange);
+    
+    activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+    if (activeEl.id === 'cardFrontText' || activeEl.id === 'cardBackText' || activeEl.id === 'cardReferenceSpan') {
+        saveActiveCardEdits();
+    }
 }

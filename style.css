@@ -809,5 +809,74 @@ p { color: var(--text-muted); }
   font-size: 0.85rem;
 }
 
+/* Floating Editor Formatting Toolbar Style */
+.editor-toolbar {
+  position: absolute;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 0.4rem;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(8px);
+  transition: opacity 0.2s, transform 0.2s;
+  animation: toolbarFadeIn 0.15s ease-out;
+}
+
+@keyframes toolbarFadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.toolbar-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 0.4rem;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.toolbar-btn:hover {
+  background-color: var(--secondary);
+}
+
+.toolbar-btn i {
+  width: 16px;
+  height: 16px;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background-color: var(--border-color);
+  margin: 0 0.2rem;
+}
+
+.toolbar-select {
+  background-color: var(--secondary);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.toolbar-select:focus {
+  border-color: var(--primary);
+}
+
+
 
 

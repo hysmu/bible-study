@@ -516,6 +516,53 @@
     <!-- Invisible Container for PDF Export -->
     <div id="pdfExportContainer" style="position: absolute; left: -9999px; top: -9999px;"></div>
 
+    <!-- Floating Editor Formatting Toolbar -->
+    <div id="editorToolbar" class="editor-toolbar hidden">
+        <button class="toolbar-btn" data-command="bold" title="굵게">
+            <i data-lucide="bold"></i>
+        </button>
+        <button class="toolbar-btn" data-command="italic" title="기울임">
+            <i data-lucide="italic"></i>
+        </button>
+        <button class="toolbar-btn" data-command="underline" title="밑줄">
+            <i data-lucide="underline"></i>
+        </button>
+        
+        <div class="toolbar-divider"></div>
+        
+        <select id="toolbarFontSize" class="toolbar-select" title="글자 크기">
+            <option value="">글자 크기</option>
+            <option value="0.85rem">작게 (13px)</option>
+            <option value="1rem">보통 (16px)</option>
+            <option value="1.25rem">크게 (20px)</option>
+            <option value="1.5rem">아주 크게 (24px)</option>
+        </select>
+        
+        <select id="toolbarLineHeight" class="toolbar-select" title="줄 간격">
+            <option value="">줄 간격</option>
+            <option value="1.3">좁게 (1.3)</option>
+            <option value="1.6">보통 (1.6)</option>
+            <option value="1.9">넓게 (1.9)</option>
+            <option value="2.2">아주 넓게 (2.2)</option>
+        </select>
+        
+        <select id="toolbarHighlight" class="toolbar-select" title="강조 및 색상">
+            <option value="">강조/색상</option>
+            <option value="color:#ef4444">빨간 글씨</option>
+            <option value="color:#3b82f6">파란 글씨</option>
+            <option value="color:#10b981">초록 글씨</option>
+            <option value="bg:yellow">노란 형광펜</option>
+            <option value="bg:rgba(239, 68, 68, 0.2)">빨간 형광펜</option>
+            <option value="bg:rgba(59, 130, 246, 0.2)">파란 형광펜</option>
+        </select>
+        
+        <div class="toolbar-divider"></div>
+        
+        <button class="toolbar-btn" data-command="removeFormat" title="서식 지우기">
+            <i data-lucide="eraser"></i>
+        </button>
+    </div>
+
     <script src="app.js"></script>
 </body>
 
