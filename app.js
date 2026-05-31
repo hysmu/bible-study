@@ -442,6 +442,10 @@ function handleConfirmMoveCards() {
 // 3. UI Navigation & Rendering
 // ==========================================
 function switchView(viewId) {
+    hideToolbar();
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+    }
     Object.values(views).forEach(v => v.classList.add('hidden'));
     
     // Stop autoplay when leaving study view
@@ -472,6 +476,10 @@ function openModal(modalId) {
 
 function closeModal(modalId) {
     document.getElementById(modalId).classList.add('hidden');
+    hideToolbar();
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+    }
 }
 
 function renderDeckList() {
@@ -937,6 +945,10 @@ function endStudySession() {
 }
 
 function renderCurrentCard() {
+    hideToolbar();
+    if (document.activeElement && document.activeElement.getAttribute('contenteditable') === 'true') {
+        document.activeElement.blur();
+    }
     if (currentStudyIndex >= currentStudyCards.length) {
         alert('학습을 완료했습니다!');
         endStudySession();
@@ -1009,10 +1021,18 @@ function renderCurrentCard() {
 
 function flipCard() {
     if (isAutoPlay) return; // Prevent manual flip during autoplay
+    hideToolbar();
+    if (document.activeElement && document.activeElement.getAttribute('contenteditable') === 'true') {
+        document.activeElement.blur();
+    }
     document.getElementById('activeFlashcard').classList.toggle('is-flipped');
 }
 
 function showAnswer() {
+    hideToolbar();
+    if (document.activeElement && document.activeElement.getAttribute('contenteditable') === 'true') {
+        document.activeElement.blur();
+    }
     document.getElementById('activeFlashcard').classList.add('is-flipped');
     document.getElementById('btnShowAnswer').classList.add('hidden');
     if (!isAutoPlay) {

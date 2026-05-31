@@ -842,6 +842,7 @@ p { color: var(--text-muted); }
   align-items: center;
   justify-content: center;
   transition: background-color 0.2s;
+  flex-shrink: 0;
 }
 
 .toolbar-btn:hover {
@@ -858,6 +859,7 @@ p { color: var(--text-muted); }
   height: 20px;
   background-color: var(--border-color);
   margin: 0 0.2rem;
+  flex-shrink: 0;
 }
 
 .toolbar-select {
@@ -871,7 +873,15 @@ p { color: var(--text-muted); }
   font-family: inherit;
   outline: none;
   transition: border-color 0.2s;
+  flex-shrink: 0;
+  min-width: 80px;
 }
+
+.toolbar-select option {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+}
+
 
 .toolbar-select:focus {
   border-color: var(--primary);
