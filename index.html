@@ -1,167 +1,569 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>성경 장제목 퍼즐 게임</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>플래시카드 프로</title>
+
+    <!-- PWA Settings -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+
+    <!-- CSS -->
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Libraries -->
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- jsPDF and html2canvas for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
-<body spellcheck="false">
-    <div class="container">
-        <header>
-            <h1>성경 장제목 퍼즐</h1>
-            <div class="controls">
-                <select id="testament-select">
-                    <option value="OT">구약</option>
-                    <option value="NT">신약</option>
-                </select>
-                <select id="book-select"></select>
-                <select id="range-select"></select>
-                <button id="start-btn">게임 시작</button>
-                <button id="hint-btn">💡 힌트</button>
-                <button id="open-editor-btn">에디터</button>
-                <button id="open-history-btn" style="background-color:#8e44ad;">&#128202; 기록</button>
-                
-                <div class="stats">
-                    <div class="stat-item">진행: <span id="progress-text">0/0</span></div>
-                    <div class="stat-item">시간: <span id="timer-text">00:00</span></div>
-                    <div class="stat-item record">최고: <span id="best-record-text">없음</span></div>
-                    <div class="tts-group">
-                        <label><input type="checkbox" id="tts-toggle" checked> 🔊</label>
-                    </div>
-                </div>
+
+<body class="light-mode">
+    <div id="app">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo">
+                <i data-lucide="layers"></i>
+                <h1>FlashPro</h1>
+            </div>
+            <div class="header-actions">
+                <button id="themeToggle" class="icon-btn" aria-label="테마 변경">
+                    <i data-lucide="moon" id="themeIcon"></i>
+                </button>
             </div>
         </header>
 
-        <main>
-            <!-- Drop Zones -->
-            <section class="puzzle-board" id="puzzle-board">
-                <!-- Drop slots will be generated here -->
+        <!-- Main Content Area -->
+        <main id="mainContent">
+
+            <!-- VIEW: Deck List (Home) -->
+            <section id="view-decks" class="view active">
+                <div class="view-header">
+                    <h2>나의 덱</h2>
+                    <div class="view-actions">
+                        <button id="btnCreateFolder" class="btn secondary">새 폴더 만들기</button>
+                        <button id="btnCreateDeck" class="btn primary">새 덱 만들기</button>
+                    </div>
+                </div>
+
+                <!-- Deck Grid -->
+                <div class="deck-grid" id="deckListContainer">
+                    <!-- Decks will be injected here via JS -->
+                </div>
+
+                <div class="view-header mt-8">
+                    <h2>전체 학습 통계</h2>
+                    <button id="btnViewLogs" class="btn outline small">상세 로그 보기</button>
+                </div>
+                <div class="stats-dashboard card-panel mb-6" id="globalStatsContainer">
+                    <div class="stat-item">
+                        <span class="stat-value" id="globalStatCards">0</span>
+                        <span class="stat-label">오늘 학습한 카드</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="globalStatTotal">0</span>
+                        <span class="stat-label">누적 학습 횟수</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="globalStatAccuracy">0%</span>
+                        <span class="stat-label">평균 정답률</span>
+                    </div>
+                </div>
+
+                <div class="view-header mt-8">
+                    <h2>데이터 관리</h2>
+                </div>
+                <div class="data-actions card-panel">
+                    <div class="action-group">
+                        <p>CSV 파일로 카드를 가져오거나 데이터를 백업하세요.</p>
+                        <div class="btn-group">
+                            <label for="csvFileInput" class="btn secondary">
+                                <i data-lucide="upload"></i> CSV 가져오기
+                            </label>
+                            <input type="file" id="csvFileInput" accept=".csv" style="display:none;">
+                            <button id="btnExportCsv" class="btn outline">
+                                <i data-lucide="file-spreadsheet"></i> CSV 내보내기
+                            </button>
+
+                            <button id="btnExportAll" class="btn outline">
+                                <i data-lucide="download"></i> 전체 백업 (JSON)
+                            </button>
+                            <label for="jsonFileInput" class="btn outline">
+                                <i data-lucide="upload-cloud"></i> 데이터 복원
+                            </label>
+                            <input type="file" id="jsonFileInput" accept=".json" style="display:none;">
+                        </div>
+                    </div>
+                </div>
             </section>
 
-            <!-- Draggable Pieces -->
-            <section class="pieces-pool" id="pieces-pool">
-                <!-- Draggable pieces will be generated here -->
+            <section id="view-deck-details" class="view hidden">
+                <div class="view-header">
+                    <div class="flex-align" style="gap: 0.5rem;">
+                        <button class="icon-btn btn-back" aria-label="뒤로가기">
+                            <i data-lucide="arrow-left"></i>
+                        </button>
+                        <h2 id="detailDeckTitle">덱 제목</h2>
+                        <button id="btnEditDeckName" class="icon-btn" aria-label="덱 이름 수정" title="덱 이름 수정">
+                            <i data-lucide="edit-2" style="width: 18px; height: 18px;"></i>
+                        </button>
+                    </div>
+                    <div class="view-actions study-actions-container">
+                        <div class="study-options-group">
+                            <label class="study-option-label active">
+                                <input type="radio" name="studyModeOption" value="due" checked style="display: none;">
+                                <span>대기 학습</span>
+                            </label>
+                            <label class="study-option-label">
+                                <input type="radio" name="studyModeOption" value="sequence" style="display: none;">
+                                <span>순차 학습</span>
+                            </label>
+                            <label class="study-option-label">
+                                <input type="radio" name="studyModeOption" value="random" style="display: none;">
+                                <span>랜덤 학습</span>
+                            </label>
+                        </div>
+                        <button id="btnStudyDeck" class="btn primary">
+                            <i data-lucide="play"></i> 학습 하기
+                        </button>
+                        <button id="btnExportPdf" class="btn outline">
+                            <i data-lucide="file-text"></i> PDF 출력
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Deck Statistics Summary -->
+                <div class="stats-summary card-panel mb-6">
+                    <div class="stat-item">
+                        <span class="stat-value" id="statTotalCards">0</span>
+                        <span class="stat-label">전체 카드</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="statDueCards">0</span>
+                        <span class="stat-label">학습 대기</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="statAccuracy">0%</span>
+                        <span class="stat-label">정답률</span>
+                    </div>
+                </div>
+
+                <div class="card-list-header flex-align-between mb-4">
+                    <h3>카드 목록</h3>
+                    <button id="btnAddCard" class="btn outline small">카드 추가</button>
+                </div>
+
+                <!-- Bulk card actions -->
+                <div class="card-list-actions flex-align-between mb-4 hidden" id="cardListActions" style="background: var(--secondary); padding: 0.5rem 1rem; border-radius: var(--radius-sm);">
+                    <div class="flex-align" style="gap: 1rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer; color: var(--text-main); font-weight: 500;">
+                            <input type="checkbox" id="cbSelectAllCards" style="width: 16px; height: 16px; cursor: pointer;">
+                            <span>전체 선택</span>
+                        </label>
+                        <span id="selectedCardsCount" style="font-size: 0.9rem; color: var(--primary); font-weight: 600;">0장 선택됨</span>
+                    </div>
+                    <button id="btnMoveSelectedCards" class="btn primary small" disabled>
+                        <i data-lucide="move"></i> 선택 카드 이동
+                    </button>
+                </div>
+
+                <div class="card-list" id="cardListContainer">
+                    <!-- Cards will be injected here -->
+                </div>
+            </section>
+
+            <!-- VIEW: Study Mode -->
+            <section id="view-study" class="view hidden">
+                <div class="study-header flex-align-between mb-4">
+                    <button class="icon-btn btn-back" aria-label="학습 종료">
+                        <i data-lucide="x"></i>
+                    </button>
+                    <div class="study-progress">
+                        <span id="studyProgressText">1 / 10</span>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="studyProgressBar"></div>
+                        </div>
+                    </div>
+                    <div class="study-actions" style="display:flex; gap:0.5rem; align-items:center;">
+                        <div class="tts-speed-control" title="읽기 속도 조절">
+                            <i data-lucide="gauge"></i>
+                            <input type="range" id="ttsSpeedSlider" min="0.5" max="2.0" step="0.1" value="1.0">
+                            <span id="ttsSpeedVal">1.0x</span>
+                        </div>
+                        <button id="btnToggleAutoPlay" class="icon-btn" aria-label="자동 재생" title="자동 재생 시작">
+                            <i data-lucide="play-circle" id="autoPlayIcon"></i>
+                        </button>
+                        <button id="btnToggleReverse" class="icon-btn" aria-label="리버스 모드" title="리버스 모드 (뒷면 먼저 보기)">
+                            <i data-lucide="refresh-cw"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Flashcard Area -->
+                <div class="flashcard-container" id="flashcardContainer">
+                    <div class="flashcard" id="activeFlashcard">
+                        <div class="flashcard-inner">
+                            <div class="flashcard-front">
+                                <button class="btn-tts tts-front" aria-label="읽기">
+                                    <i data-lucide="volume-2"></i>
+                                </button>
+                                <div class="card-content" id="cardFrontText" contenteditable="true">앞면 내용</div>
+                                <div class="hint-text">클릭하여 뒤집기</div>
+                            </div>
+                            <div class="flashcard-back">
+                                <button class="btn-tts tts-back" aria-label="읽기">
+                                    <i data-lucide="volume-2"></i>
+                                </button>
+                                <div class="card-content answer-text" id="cardBackText" contenteditable="true">뒷면 정답</div>
+                                <div class="card-reference" id="cardReferenceText" style="display: none;">
+                                    <strong>참고 자료:</strong> <span id="cardReferenceSpan" contenteditable="true"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Study Controls -->
+                <div class="study-controls">
+                    <button id="btnShowAnswer" class="btn primary full-width">정답 보기</button>
+
+                    <div id="srsControls" class="srs-controls hidden">
+                        <button class="btn srs-btn btn-again" data-score="0">
+                            <span class="label">다시 (1분)</span>
+                            <span class="desc">Again</span>
+                        </button>
+                        <button class="btn srs-btn btn-hard" data-score="1">
+                            <span class="label">어려움</span>
+                            <span class="desc">Hard</span>
+                        </button>
+                        <button class="btn srs-btn btn-good" data-score="2">
+                            <span class="label">알맞음</span>
+                            <span class="desc">Good</span>
+                        </button>
+                        <button class="btn srs-btn btn-easy" data-score="3">
+                            <span class="label">쉬움</span>
+                            <span class="desc">Easy</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+            <!-- VIEW: Logs -->
+            <section id="view-logs" class="view hidden">
+                <div class="view-header">
+                    <div class="flex-align">
+                        <button class="icon-btn btn-back" aria-label="뒤로가기">
+                            <i data-lucide="arrow-left"></i>
+                        </button>
+                        <h2>상세 학습 로그</h2>
+                    </div>
+                </div>
+                <div class="card-panel" style="max-height: 70vh; overflow-y: auto;">
+                    <div id="logsListContainer" style="display: flex; flex-direction: column; gap: 1rem;">
+                        <!-- Logs injected here -->
+                    </div>
+                </div>
             </section>
         </main>
-        
-        <!-- Success Modal -->
-        <div id="success-modal" class="modal hidden">
-            <div class="modal-content">
-                <span id="close-success-btn" class="close-btn">&times;</span>
-                <h2>축하합니다! 🎉</h2>
-                <p>선택한 범위의 장제목을 모두 맞추셨습니다.</p>
-                <div style="margin: 1.5rem 0; padding: 1.5rem; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
-                    <p style="font-size: 1.3rem; margin-bottom: 0;">완성 시간: <strong id="final-time" style="color: var(--primary-color); font-family: monospace;">00:00</strong></p>
-                    <p id="new-record-msg" style="color: var(--success-color); font-weight: bold; margin-top: 0.8rem; display: none; font-size: 1.1rem; animation: popIn 0.3s ease-out;">🏆 새로운 최고 기록입니다!</p>
-                </div>
-                <div style="display: flex; gap: 10px; justify-content: center;">
-                    <button id="restart-btn">다시 하기</button>
-                    <button id="review-btn" style="background-color: #e74c3c; display: none;">📝 오답 노트</button>
-                </div>
-            </div>
-        </div>
+    </div>
 
-        <!-- Review Modal -->
-        <div id="review-modal" class="modal hidden">
-            <div class="modal-content" style="width: 90%; max-width: 500px; text-align: left;">
-                <h2 style="color: #e74c3c; margin-bottom: 1rem; font-size: 1.8rem;">📝 오답 노트</h2>
-                <p style="margin-bottom: 1rem; color: #555;">잘못된 위치에 놓았던 장 제목들입니다. 다시 복습해 보세요!</p>
-                <ul id="review-list" style="max-height: 300px; overflow-y: auto; list-style: none; padding: 0; margin-bottom: 1.5rem; border: 1px solid var(--border-color); border-radius: 4px; background: #fdfdfd;">
-                </ul>
-                <div style="text-align: right;">
-                    <button id="close-review-btn" style="background-color: #95a5a6;">닫기</button>
+    <!-- Modals -->
+    <!-- Create Folder Modal -->
+    <div id="modalCreateFolder" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>새 폴더 만들기</h3>
+                <button class="icon-btn btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="folderNameInput">폴더 이름</label>
+                    <input type="text" id="folderNameInput" placeholder="예: 언어, 수학, 자격증...">
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary btn-close-modal">취소</button>
+                    <button id="btnConfirmCreateFolder" class="btn primary">만들기</button>
                 </div>
             </div>
         </div>
-        
-        <!-- Data Editor Modal -->
-        <div id="editor-modal" class="modal hidden">
-            <div class="modal-content" style="width: 90%; max-width: 600px; text-align: left;">
-                <h2 style="color: var(--primary-color); margin-bottom: 0.5rem; font-size: 1.8rem;">데이터 입력기</h2>
-                <p style="margin-bottom: 1rem; color: #555; font-size: 0.95rem;">성경을 선택하고 각 줄에 장 제목을 입력하세요.</p>
-                <div class="controls" style="flex-direction: row; margin-bottom: 1rem;">
-                    <select id="edit-testament-select">
-                        <option value="OT">구약</option>
-                        <option value="NT">신약</option>
+    </div>
+
+    <!-- Move Item Modal -->
+    <div id="modalMoveItem" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>폴더 이동</h3>
+                <button class="icon-btn btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="moveItemId">
+                <input type="hidden" id="moveItemType">
+                <div class="form-group">
+                    <label for="moveTargetSelect">이동할 위치 선택</label>
+                    <select id="moveTargetSelect" style="width:100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-family: inherit; font-size: 1rem;">
+                        <option value="root">최상위 위치 (기본)</option>
+                        <!-- Folders injected here -->
                     </select>
-                    <select id="edit-book-select" style="flex: 1;"></select>
                 </div>
-                <textarea id="edit-textarea" rows="15" style="width: 100%; padding: 10px; font-size: 1rem; border: 1px solid var(--border-color); border-radius: 4px; resize: vertical; line-height: 1.5; font-family: inherit;" placeholder="장 제목과 요약 내용을 '|' 기호로 구분해서 입력하세요.&#10;(요약 내용이 없으면 장 제목만 입력해도 됩니다)&#10;&#10;예:&#10;천지 창조 | 태초에 하나님이 천지를 창조하시니라&#10;에덴 동산 | 아담과 하와가 에덴 동산에서 살게 됨&#10;죄의 기원과 인류의 타락" spellcheck="false"></textarea>
-                <div style="margin-top: 1rem; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
-                    <button id="close-editor-btn" style="background-color: #95a5a6;">닫기</button>
-                    <button id="export-data-btn" style="background-color: #3498db;">📥 파일 내보내기</button>
-                    <button id="import-data-btn" style="background-color: #e67e22;">📤 파일 가져오기</button>
-                    <input type="file" id="import-file-input" accept=".json" style="display: none;">
-                    <button id="save-data-btn" style="background-color: var(--primary-color);">💾 바로 저장</button>
-                    <button id="copy-data-btn" style="background-color: var(--success-color);">전체 코드 복사</button>
+                <div class="form-actions">
+                    <button class="btn secondary btn-close-modal">취소</button>
+                    <button id="btnConfirmMove" class="btn primary">이동</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- History Modal -->
-    <div id="history-modal" class="modal hidden">
-        <div class="modal-content history-modal-content">
-            <span id="close-history-btn" class="close-btn">&times;</span>
-            <h2 style="color:#8e44ad;">&#128202; 게임 기록</h2>
-
-            <!-- 필터 탭 -->
-            <div class="history-filter-tabs">
-                <button class="htab active" data-filter="daily">일간</button>
-                <button class="htab" data-filter="weekly">주간</button>
-                <button class="htab" data-filter="monthly">월간</button>
-                <button class="htab" data-filter="custom">선택기간</button>
+    <!-- Move Selected Cards Modal -->
+    <div id="modalMoveCards" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>선택한 카드 이동/복사</h3>
+                <button class="icon-btn btn-close-modal"><i data-lucide="x"></i></button>
             </div>
-            <div id="history-custom-range" class="history-custom-range hidden">
-                <label>시작 <input type="date" id="hist-date-from"></label>
-                <label>종료 <input type="date" id="hist-date-to"></label>
-                <button id="hist-apply-btn">조회</button>
-            </div>
-
-            <!-- 통계 및 전체삭제 -->
-            <div class="history-toolbar">
-                <span id="history-count">0건</span>
-                <button id="delete-all-history-btn" class="btn-danger-sm">휴지통 비우기</button>
-            </div>
-
-            <!-- 목록 -->
-            <div class="history-list-wrap">
-                <table class="history-table">
-                    <thead>
-                        <tr>
-                            <th>구분</th>
-                            <th>성경</th>
-                            <th>범위</th>
-                            <th>시작</th>
-                            <th>종료</th>
-                            <th>소요</th>
-                            <th>메모</th>
-                            <th>액션</th>
-                        </tr>
-                    </thead>
-                    <tbody id="history-tbody"></tbody>
-                </table>
-                <p id="history-empty" class="history-empty hidden">해당 기간의 기록이 없습니다.</p>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="moveCardsTargetSelect">대상 덱 선택</label>
+                    <select id="moveCardsTargetSelect" style="width:100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-family: inherit; font-size: 1rem;">
+                        <!-- Decks injected here -->
+                    </select>
+                </div>
+                <div class="form-group" style="margin-top: 12px; margin-bottom: 8px;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal; cursor: pointer; color: var(--text-main);">
+                        <input type="checkbox" id="chkKeepOriginal" style="width: 18px; height: 18px; cursor: pointer;">
+                        <span>원본 카드를 현재 위치에 남겨두기 (복사)</span>
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary btn-close-modal">취소</button>
+                    <button id="btnConfirmMoveCards" class="btn primary">이동</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Memo Edit Modal -->
-    <div id="memo-modal" class="modal hidden">
-        <div class="modal-content" style="max-width:420px;">
-            <span id="close-memo-btn" class="close-btn">&times;</span>
-            <h2 style="font-size:1.3rem;margin-bottom:1rem;">메모 편집</h2>
-            <textarea id="memo-textarea" rows="5" style="width:100%;padding:10px;font-size:1rem;border:1px solid var(--border-color);border-radius:8px;resize:vertical;font-family:inherit;" placeholder="메모를 입력하세요..." spellcheck="false"></textarea>
-            <div style="margin-top:1rem;display:flex;gap:10px;justify-content:flex-end;">
-                <button id="close-memo-btn2" style="background:#95a5a6;">취소</button>
-                <button id="save-memo-btn" style="background:var(--primary-color);">&#128190; 저장</button>
+    <!-- Create Deck Modal -->
+    <div id="modalCreateDeck" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>새 덱 만들기</h3>
+                <button class="icon-btn btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="deckNameInput">덱 이름</label>
+                    <input type="text" id="deckNameInput" placeholder="예: 영어 단어장, 한국사 연표...">
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary btn-close-modal">취소</button>
+                    <button id="btnConfirmCreateDeck" class="btn primary">만들기</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <script src="data.js"></script>
+    <!-- Add Card Modal -->
+    <div id="modalAddCard" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>카드 추가/수정</h3>
+                <button class="icon-btn btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editCardId">
+                <div class="form-group">
+                    <label for="cardFrontInput">질문 (앞면)</label>
+                    <div id="cardFrontInput" contenteditable="true" class="rich-textarea" placeholder="질문을 입력하세요"></div>
+                </div>
+                <div class="form-group">
+                    <label for="cardBackInput">정답 (뒷면)</label>
+                    <div id="cardBackInput" contenteditable="true" class="rich-textarea" placeholder="정답을 입력하세요"></div>
+                </div>
+                <div class="form-group">
+                    <label for="cardReferenceInput">참고자료 (옵션)</label>
+                    <div id="cardReferenceInput" contenteditable="true" class="rich-textarea" placeholder="관련 링크나 부가 설명을 입력하세요"></div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary btn-close-modal">취소</button>
+                    <button id="btnConfirmAddCard" class="btn primary">저장</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Export Modal -->
+    <div id="modalExportPdf" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>PDF 출력 옵션</h3>
+                <button class="icon-btn btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="pdfFileNameInput">파일 이름</label>
+                    <input type="text" id="pdfFileNameInput" placeholder="기본값: 덱이름_flashcards">
+                </div>
+                <div class="form-group">
+                    <label for="pdfLayoutSelect">출력 레이아웃 선택</label>
+                    <select id="pdfLayoutSelect"
+                        style="width:100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm); font-family: inherit; font-size: 1rem;">
+                        <option value="8">8장 / 페이지 (모아 찍기)</option>
+                        <option value="1">1장 / 페이지 (크게 보기)</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary btn-close-modal">취소</button>
+                    <button id="btnConfirmExportPdf" class="btn primary">출력 시작</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSV Export Modal -->
+    <div id="modalExportCsv" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>CSV 내보내기</h3>
+                <button class="icon-btn btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <div class="flex-align-between" style="margin-bottom: 8px;">
+                        <label style="margin-bottom: 0;">내보낼 덱 선택 (다중 선택 가능)</label>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" id="btnSelectAllDecks" class="btn outline small" style="padding: 4px 8px; font-size: 0.8rem; height: auto; min-height: 0;">전체 선택</button>
+                            <button type="button" id="btnDeselectAllDecks" class="btn outline small" style="padding: 4px 8px; font-size: 0.8rem; height: auto; min-height: 0;">전체 해제</button>
+                        </div>
+                    </div>
+                    <div id="csvDeckSelection"
+                        style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; border-radius: var(--radius-sm);">
+                        <!-- checkboxes -->
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn secondary btn-close-modal">취소</button>
+                    <button id="btnConfirmExportCsv" class="btn primary">선택 항목 내보내기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Split Card Modal -->
+    <div id="modalSplitCard" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>카드 분할</h3>
+                <button class="icon-btn btn-close-modal"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="splitCardId">
+                <p class="mb-4" style="font-size: 0.9rem; color: var(--text-muted);">
+                    현재 카드를 두 개의 카드로 분할합니다. 질문(앞면)과 정답(뒷면)의 내용을 나누어 배치해 주세요.
+                </p>
+                
+                <div style="display: flex; flex-direction: column; gap: 1rem; max-height: 55vh; overflow-y: auto; padding-right: 0.5rem; margin-bottom: 1rem;">
+                    <!-- Card 1 -->
+                    <div style="border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-sm); background: var(--bg-color);">
+                        <h4 style="margin-bottom: 0.5rem; color: var(--primary); font-size: 0.95rem; font-weight: 600;">첫 번째 카드 (기존 카드 수정)</h4>
+                        <div class="form-group">
+                            <label for="splitCard1Front">질문 (앞면)</label>
+                            <div id="splitCard1Front" contenteditable="true" class="rich-textarea" placeholder="첫 번째 질문을 입력하세요"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="splitCard1Back">정답 (뒷면)</label>
+                            <div id="splitCard1Back" contenteditable="true" class="rich-textarea" placeholder="첫 번째 정답을 입력하세요"></div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="splitCard1Reference">참고자료 (옵션)</label>
+                            <div id="splitCard1Reference" contenteditable="true" class="rich-textarea" placeholder="참고자료를 입력하세요"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Card 2 -->
+                    <div style="border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-sm); background: var(--bg-color);">
+                        <h4 style="margin-bottom: 0.5rem; color: var(--primary); font-size: 0.95rem; font-weight: 600;">두 번째 카드 (새 카드로 분할 삽입)</h4>
+                        <div class="form-group">
+                            <label for="splitCard2Front">질문 (앞면)</label>
+                            <div id="splitCard2Front" contenteditable="true" class="rich-textarea" placeholder="두 번째 질문을 입력하세요"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="splitCard2Back">정답 (뒷면)</label>
+                            <div id="splitCard2Back" contenteditable="true" class="rich-textarea" placeholder="두 번째 정답을 입력하세요"></div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="splitCard2Reference">참고자료 (옵션)</label>
+                            <div id="splitCard2Reference" contenteditable="true" class="rich-textarea" placeholder="참고자료를 입력하세요"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button class="btn secondary btn-close-modal">취소</button>
+                    <button id="btnConfirmSplitCard" class="btn primary">분할 완료</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invisible Container for PDF Export -->
+    <div id="pdfExportContainer" style="position: absolute; left: -9999px; top: -9999px;"></div>
+
+    <!-- Floating Editor Formatting Toolbar -->
+    <div id="editorToolbar" class="editor-toolbar hidden">
+        <button class="toolbar-btn" data-command="bold" title="굵게">
+            <i data-lucide="bold"></i>
+        </button>
+        <button class="toolbar-btn" data-command="italic" title="기울임">
+            <i data-lucide="italic"></i>
+        </button>
+        <button class="toolbar-btn" data-command="underline" title="밑줄">
+            <i data-lucide="underline"></i>
+        </button>
+        
+        <div class="toolbar-divider"></div>
+        
+        <select id="toolbarFontSize" class="toolbar-select" title="글자 크기">
+            <option value="">글자 크기</option>
+            <option value="0.85rem">작게 (13px)</option>
+            <option value="1rem">보통 (16px)</option>
+            <option value="1.25rem">크게 (20px)</option>
+            <option value="1.5rem">아주 크게 (24px)</option>
+        </select>
+        
+        <select id="toolbarLineHeight" class="toolbar-select" title="줄 간격">
+            <option value="">줄 간격</option>
+            <option value="1.3">좁게 (1.3)</option>
+            <option value="1.6">보통 (1.6)</option>
+            <option value="1.9">넓게 (1.9)</option>
+            <option value="2.2">아주 넓게 (2.2)</option>
+        </select>
+        
+        <select id="toolbarHighlight" class="toolbar-select" title="강조 및 색상">
+            <option value="">강조/색상</option>
+            <option value="color:#ef4444">빨간 글씨</option>
+            <option value="color:#3b82f6">파란 글씨</option>
+            <option value="color:#10b981">초록 글씨</option>
+            <option value="bg:yellow">노란 형광펜</option>
+            <option value="bg:rgba(239, 68, 68, 0.2)">빨간 형광펜</option>
+            <option value="bg:rgba(59, 130, 246, 0.2)">파란 형광펜</option>
+        </select>
+        
+        <div class="toolbar-divider"></div>
+        
+        <button class="toolbar-btn" data-command="removeFormat" title="서식 지우기">
+            <i data-lucide="eraser"></i>
+        </button>
+    </div>
+
     <script src="app.js"></script>
 </body>
+
 </html>
