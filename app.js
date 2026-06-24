@@ -33,9 +33,9 @@ const views = {
 };
 
 // Initialization
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     lucide.createIcons();
-    loadData();
+    await loadData();
     // Initialize statistics if missing from old data
     if (!appData.statistics) {
         appData.statistics = { daily: {}, totalCardsStudied: 0, totalCorrect: 0, totalAttempts: 0 };
@@ -68,17 +68,80 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==========================================
-// 1. Data Management (LocalStorage)
+// 1. Data Management (IndexedDB + LocalStorage Fallback)
 // ==========================================
-function saveData() {
-    localStorage.setItem('flashpro_data', JSON.stringify(appData));
+const DB_NAME = 'FlashProDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'appDataStore';
+
+function initDB() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+            }
+        };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e);
+    });
 }
 
-function loadData() {
-    const saved = localStorage.getItem('flashpro_data');
-    if (saved) {
+async function setIDBItem(key, value) {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.put(value, key);
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e);
+    });
+}
+
+async function getIDBItem(key) {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.get(key);
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e);
+    });
+}
+
+async function saveData() {
+    try {
+        const dataStr = JSON.stringify(appData);
+        await setIDBItem('flashpro_data', dataStr);
+    } catch (e) {
+        console.error('IndexedDB save error', e);
         try {
+            localStorage.setItem('flashpro_data', JSON.stringify(appData));
+        } catch (err) {
+            console.error('LocalStorage save error', err);
+            alert('저장 공간이 부족하여 데이터를 저장하지 못했습니다.');
+        }
+    }
+}
+
+async function loadData() {
+    try {
+        const saved = await getIDBItem('flashpro_data');
+        if (saved) {
             appData = JSON.parse(saved);
+            return;
+        }
+    } catch (e) {
+        console.error('IndexedDB load error', e);
+    }
+    
+    // Migration from localStorage
+    const oldSaved = localStorage.getItem('flashpro_data');
+    if (oldSaved) {
+        try {
+            appData = JSON.parse(oldSaved);
+            await setIDBItem('flashpro_data', oldSaved);
         } catch (e) {
             console.error('Data parsing error', e);
         }
@@ -1227,7 +1290,7 @@ function handleImportJson(e) {
     if (!file) return;
     
     const reader = new FileReader();
-    reader.onload = function(event) {
+    reader.onload = async function(event) {
         try {
             const importedData = JSON.parse(event.target.result);
             if (importedData && importedData.decks) {
@@ -1236,14 +1299,14 @@ function handleImportJson(e) {
                 } else {
                     appData.decks = [...appData.decks, ...importedData.decks];
                 }
-                saveData();
+                await saveData();
                 renderDeckList();
                 alert('데이터 복원이 완료되었습니다.');
             } else {
                 alert('잘못된 백업 파일 포맷입니다.');
             }
         } catch (error) {
-            alert('JSON 파싱 오류: ' + error.message);
+            alert('데이터 처리 중 오류가 발생했습니다: ' + error.message);
         }
     };
     reader.readAsText(file);
